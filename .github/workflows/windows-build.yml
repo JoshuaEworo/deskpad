@@ -1,0 +1,32 @@
+name: Windows build
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+      - run: python -m pip install -e ".[dev]" -c requirements.lock pyinstaller
+      - run: python -m pytest -q
+      - run: python -m PyInstaller --noconfirm --name Deskpad --collect-submodules uvicorn --collect-submodules mss --collect-submodules websockets --add-data "host/deskpad/static:deskpad/static" scripts/frozen_entry.py
+      - run: Copy-Item README.md,LICENSE,SECURITY.md dist/Deskpad/
+      - run: Compress-Archive -Path dist/Deskpad -DestinationPath dist/Deskpad-Windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Deskpad-Windows-x64
+          path: dist/Deskpad-Windows-x64.zip
+          retention-days: 14

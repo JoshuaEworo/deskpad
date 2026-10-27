@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+node_modules/
+host/deskpad/static/
+dist/
+build/
+test-results/
+playwright-report/
+*.log

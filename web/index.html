@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#121715" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Deskpad</title>
+  </head>
+  <body>
+    <main id="app">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Deskpad home"
+          ><span class="brand-mark" aria-hidden="true">d</span>deskpad<span
+            class="alpha"
+            >ALPHA</span
+          ></a
+        >
+        <button
+          id="settings-toggle"
+          class="icon-button"
+          aria-label="Open settings"
+        >
+          ⚙
+        </button>
+      </header>
+      <section id="pairing" class="pairing" aria-labelledby="pair-title" hidden>
+        <div class="eyebrow">YOUR COMPUTER. WITHIN REACH.</div>
+        <h1 id="pair-title">A little closer<br />to your desktop.</h1>
+        <p>
+          Enter the six-digit code shown on your laptop to connect this phone.
+        </p>
+        <form id="pair-form">
+          <label for="pair-code">Pairing code</label>
+          <input
+            id="pair-code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxlength="6"
+            required
+            placeholder="000000"
+          />
+          <button class="primary" type="submit">
+            Connect to laptop <span aria-hidden="true">↗</span>
+          </button>
+        </form>
+        <p id="pair-error" role="alert"></p>
+        <div class="pair-note">On the same Wi-Fi · No account needed</div>
+      </section>
+      <section
+        id="workspace"
+        class="workspace"
+        hidden
+        aria-label="Remote desktop controls"
+      >
+        <div class="session-bar">
+          <span
+            ><i id="status-dot"></i
+            ><span id="status" role="status">Connecting…</span></span
+          ><span id="metrics">LOCAL CONNECTION</span>
+        </div>
+        <div
+          id="screen"
+          class="screen"
+          aria-label="Laptop screen. Pinch to zoom; drag to pan."
+        >
+          <div id="picture" class="picture">
+            <img id="desktop" alt="Live laptop desktop" draggable="false" /><svg
+              id="cursor"
+              viewBox="0 0 24 30"
+              aria-hidden="true"
+            >
+              <path
+                d="M2 2 20 17 12 18 9 26Z"
+                fill="white"
+                stroke="#111"
+                stroke-width="2"
+              />
+            </svg>
+          </div>
+          <div id="screen-empty" class="screen-empty">
+            Your desktop will appear here.
+          </div>
+          <button
+            id="reset-view"
+            class="screen-chip"
+            aria-label="Reset desktop zoom"
+          >
+            Fit screen ↙
+          </button>
+        </div>
+        <div
+          id="divider"
+          class="divider"
+          role="separator"
+          tabindex="0"
+          aria-label="Resize desktop area"
+          aria-orientation="horizontal"
+          aria-valuemin="22"
+          aria-valuemax="65"
+          aria-valuenow="38"
+        >
+          <span></span>
+        </div>
+        <div class="pad-caption">
+          <span>TRACKPAD</span><span id="pad-hint">Two fingers to scroll</span>
+        </div>
+        <div
+          id="trackpad"
+          class="trackpad"
+          aria-label="Mouse trackpad"
+          tabindex="0"
+        >
+          <div class="pad-center" aria-hidden="true">
+            <span>+</span><small>A little room to move.</small>
+          </div>
+        </div>
+        <div class="mouse-row">
+          <button id="mouse-left" aria-label="Left mouse button. Hold to drag.">
+            Left click</button
+          ><button id="drag-lock" aria-pressed="false">Drag lock</button
+          ><button id="mouse-right" aria-label="Right mouse button">
+            Right click
+          </button>
+        </div>
+        <div class="key-strip" aria-label="Desktop keys">
+          <button data-key="Escape">esc</button
+          ><button data-key="Tab">tab ⇥</button
+          ><button data-mod="Control" aria-pressed="false">ctrl</button
+          ><button data-mod="Alt" aria-pressed="false">alt</button
+          ><button data-mod="Shift" aria-pressed="false">shift</button
+          ><button data-mod="Meta" aria-pressed="false">win</button
+          ><button data-key="ArrowLeft" aria-label="Left arrow">←</button
+          ><button data-key="ArrowDown" aria-label="Down arrow">↓</button
+          ><button data-key="ArrowUp" aria-label="Up arrow">↑</button
+          ><button data-key="ArrowRight" aria-label="Right arrow">→</button
+          ><button data-key="Backspace" aria-label="Backspace">⌫</button
+          ><button data-key="Enter">enter ↵</button>
+        </div>
+        <div id="shortcuts" class="shortcuts" hidden>
+          <button data-shortcut="Control,c">Copy</button
+          ><button data-shortcut="Control,v">Paste on PC</button
+          ><button data-shortcut="Control,z">Undo</button
+          ><button data-shortcut="Control,y">Redo</button
+          ><button data-shortcut="Control,a">Select all</button
+          ><button data-shortcut="Alt,Tab">Switch app</button
+          ><button id="paste-text">Send text…</button>
+        </div>
+        <div id="typing-row" class="typing-row" hidden>
+          <label for="typing" class="sr-only">Type on your laptop</label
+          ><textarea
+            id="typing"
+            rows="1"
+            enterkeyhint="enter"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="Type on your laptop…"
+          ></textarea
+          ><button id="hide-keyboard" aria-label="Hide keyboard">Done</button>
+        </div>
+        <footer class="bottom-bar">
+          <button
+            id="keyboard-toggle"
+            class="keyboard-button"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">⌨</span> Keyboard</button
+          ><button id="shortcuts-toggle" aria-expanded="false">
+            Shortcuts <span aria-hidden="true">⌘</span></button
+          ><button id="reconnect" aria-label="Reconnect">↻</button>
+        </footer>
+      </section>
+      <aside id="settings" class="settings" hidden aria-label="Settings">
+        <div class="settings-header">
+          <h2>Make it yours.</h2>
+          <button id="settings-close" aria-label="Close settings">✕</button>
+        </div>
+        <label for="sensitivity"
+          >Pointer speed <output id="speed-value">1.5×</output></label
+        ><input
+          id="sensitivity"
+          type="range"
+          min="0.5"
+          max="4"
+          step="0.1"
+          value="1.5"
+        />
+        <label class="check-row"
+          ><input id="natural-scroll" type="checkbox" checked /> Natural
+          scrolling</label
+        >
+        <p class="settings-help">
+          Tap to click. Two-finger tap to right-click. Hold, then move to drag.
+          Pinch the desktop to zoom.
+        </p>
+        <button id="disconnect">Disconnect</button
+        ><button id="forget">Forget this phone</button>
+        <p class="settings-help">
+          Keep your laptop awake and the host running. Use only on a trusted
+          network.
+        </p>
+      </aside>
+      <dialog id="text-dialog">
+        <form method="dialog">
+          <h2>Send text to your laptop</h2>
+          <p>Paste or dictate here, then send to the active app.</p>
+          <textarea
+            id="paste-content"
+            rows="5"
+            maxlength="4096"
+            aria-label="Text to send"
+          ></textarea>
+          <div class="dialog-actions">
+            <button value="cancel">Cancel</button
+            ><button id="send-text" value="send" class="primary">
+              Send text
+            </button>
+          </div>
+        </form>
+      </dialog>
+      <div id="toast" class="toast" role="alert" hidden></div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

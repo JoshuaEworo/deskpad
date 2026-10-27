@@ -72,6 +72,7 @@
           <div id="screen-empty" class="screen-empty">
             Connecting to your desktop…
           </div>
+          <span id="status" class="sr-only" role="status">Connecting…</span>
           <div class="screen-overlay">
             <button
               id="brand-status"
@@ -81,7 +82,6 @@
               <i id="status-dot"></i><span>deskpad</span
               ><small id="demo-label" hidden>demo</small>
             </button>
-            <span id="status" class="sr-only" role="status">Connecting…</span>
             <button
               id="settings-toggle"
               class="menu-button"
@@ -134,6 +134,13 @@
           </button>
         </div>
         <div class="controls">
+          <button
+            id="rail-brand"
+            class="rail-brand"
+            aria-label="Deskpad connection details"
+          >
+            <i id="rail-status-dot"></i>deskpad
+          </button>
           <div class="key-strip" aria-label="Desktop keys">
             <button data-key="Escape">esc</button
             ><button data-key="Tab">tab</button>
@@ -160,6 +167,10 @@
             ><button data-key="F11">F11</button
             ><button data-key="F12">F12</button>
           </div>
+          <div class="mode-switch" role="group" aria-label="Screen controls">
+            <button id="mouse-mode" aria-pressed="true">Mouse</button
+            ><button id="view-mode" aria-pressed="false">View</button>
+          </div>
           <button
             id="keyboard-toggle"
             class="keyboard-button"
@@ -168,6 +179,21 @@
           >
             <span aria-hidden="true">⌨</span
             ><span class="keyboard-chevron" aria-hidden="true">▾</span>
+          </button>
+          <button
+            id="landscape-settings"
+            class="landscape-menu"
+            aria-label="Open landscape settings"
+          >
+            ···
+          </button>
+          <button
+            id="bar-toggle"
+            class="dock-toggle"
+            aria-label="Collapse hotkeys"
+            aria-expanded="true"
+          >
+            ▾
           </button>
         </div>
       </section>

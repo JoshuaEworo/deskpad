@@ -19,6 +19,7 @@ The first release is a LAN tool, not a hosted service or gaming client. One proc
 | `capture.py` | MSS capture, downscale/encode, synthetic demo frames |
 | `web/src/connection.ts` | Transport, heartbeat, reconnect, input ordering/coalescing |
 | `gestures.ts` | DOM-independent trackpad gesture state machine |
+| `trackpad-surface.ts` | Shared pointer binding and cancellation for the portrait pad and landscape desktop |
 | `keyboard.ts` | Native phone input and composition handling |
 | `viewer.ts` | Width-based desktop fitting, content-aware pan bounds, pinch zoom, resize preservation |
 | `main.ts` | UI state, compact layout, settings, session orchestration |
@@ -49,7 +50,15 @@ The desktop viewer derives its base dimensions from width only. A shorter keyboa
 
 Two-finger viewer gestures snapshot the initial midpoint, distance, zoom, and pan. Each move maps the same image point to the current midpoint, allowing focal zoom and two-finger panning. Computing from the gesture start avoids drift from sequential per-finger events and intermediate edge clamping. Final pan is constrained to image bounds.
 
-Trackpad gestures own a complete touch sequence. When one finger remains after a two-finger gesture, it cannot turn into a cursor movement or click. Cancellation releases a drag. Screen gestures belong to the viewer, not the trackpad; they can never generate host pointer input. Preferences persist only locally on the phone.
+Trackpad gestures own a complete touch sequence. When one finger remains after a two-finger gesture, it cannot turn into a cursor movement or click. Cancellation releases a drag. Portrait screen gestures belong to the viewer, separate from the trackpad. Landscape explicitly routes the desktop surface to either the relative-trackpad binding (Mouse) or the viewer (View), never both. View mode cannot generate host pointer input. Preferences persist only locally on the phone.
+
+## Landscape and orientation
+
+Orientation follows Screen Orientation API changes, with a legacy angle/screen-dimension fallback. VisualViewport changes do not decide orientation: opening a software keyboard must not activate landscape. Browser tests simulate portrait keyboard-sized viewports with fixed physical screen orientation rather than rotating the test device accidentally.
+
+Landscape removes the portrait pad, divider, mouse-button row, and overlay branding/menu. The desktop uses contain fitting above a normal-flow dock; image proportions are preserved and controls never overlap it. The expanded dock is 42px high; the collapsed rail is 28px. Safe-area padding remains outside the viewer/dock. The collapsed rail retains branding/status, Mouse/View, keyboard, and expand controls. Expanded branding is in the menu. Collapse preference is persisted locally.
+
+The shared trackpad recognizer binds to the portrait pad or the entire landscape screen, depending on layout and selected mode. DesktopViewer has an explicit enabled flag: disabled in landscape Mouse mode, enabled in View mode and portrait. Mode changes, rotation, and collapsing the dock cancel pending contacts/hold timers and release remote held keys/buttons. Viewer zoom/pan state is stored separately for each orientation within the session. Portrait keyboard intent is remembered on entry to landscape; landscape initially dismisses it, and return to portrait attempts focus restoration without claiming that iOS permits automatic software keyboard activation.
 
 ## Pairing and privacy
 

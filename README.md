@@ -10,6 +10,7 @@ A free, local-first remote desktop for a Windows laptop and an iPhone. Hold your
 
 - Edge-to-edge desktop fitted to width, with pinch zoom/pan preserved when the keyboard opens.
 - Slim, resizable trackpad with tap, two-finger right click, scrolling, long-press drag, and double-tap drag. Pointer speed defaults to 4×, adjustable from 2.5× to 7×.
+- Landscape desktop as a relative trackpad, with explicit Mouse/View modes and a docked, collapsible hotkey bar.
 - Optional one-thumb scroll wheel, mouse buttons, and drag lock; tiny Deskpad branding and a menu float over the desktop.
 - Native phone text input, desktop keys, one-shot modifiers, shortcuts, and a text-send box for pasting or dictation.
 - QR address and six-digit pairing; remembered phone credentials expire after 30 days.
@@ -75,14 +76,16 @@ Host options:
 | Scroll | Two fingers, or enable the side scroll wheel in the menu and drag it with one finger; reverse direction in settings |
 | Drag | Hold still briefly, then move; double-tap and drag also works |
 | Persistent drag | Menu → Drag lock; opening the menu releases held input |
-| Zoom desktop | Pinch around the part you want to enlarge; the pinch midpoint anchors the view, subject to image bounds |
-| Pan desktop | Drag the screen while zoomed |
+| Zoom desktop | Portrait: pinch the screen. Landscape: select View, then pinch around the part you want to enlarge |
+| Pan desktop | Portrait: drag the screen while zoomed. Landscape: select View, then drag |
 | Type | Keyboard stays focused while using the trackpad/desktop keys; bottom-right button shows/hides it |
 | Shortcut | Select Ctrl/Alt/Shift/Win, then a letter or desktop key; modifiers release afterward |
 | Paste phone text | Menu → Send text; paste or dictate, then send |
 | Paste laptop clipboard | Menu → Paste on PC |
 
-Desktop controls are local to this UI; clicking inside the video does not click the PC. Pinching or panning the screen never moves the Windows pointer.
+Portrait keeps a separate trackpad beneath the screen. Landscape hides that trackpad and fits the entire desktop above a docked control bar; the bar never overlays the image. In **Mouse** mode, sliding over the desktop moves the real Windows cursor, and tapping clicks at the cursor position (not at the finger position). Two-finger tap right-clicks, two fingers scroll, and hold/double-tap drag works as on the portrait pad. In **View** mode, screen gestures only pan/zoom the viewer and send no mouse input. Switching modes releases held inputs.
+
+The landscape bar collapses to a shorter rail with small branding, Mouse/View controls, a keyboard button, and an expand button. Collapse state is remembered. Landscape starts with the keyboard tucked away; open it explicitly when needed. Rotating back restores the portrait view and trackpad preferences, and attempts to restore keyboard focus if it was previously open. Safari may require a keyboard tap after rotation. Each orientation keeps its own in-session zoom/pan state.
 
 ## Limits worth knowing
 

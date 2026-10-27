@@ -6,6 +6,12 @@ export class DesktopViewer {
   private y = 0;
   private contacts = new Map<number, { x: number; y: number }>();
   private observer: ResizeObserver;
+  private enabled = true;
+  private orientation: "portrait" | "landscape" = "portrait";
+  private states = {
+    portrait: { zoom: 1, x: 0, y: 0 },
+    landscape: { zoom: 1, x: 0, y: 0 },
+  };
   private pinch?: {
     distance: number;
     zoom: number;
@@ -21,7 +27,7 @@ export class DesktopViewer {
     this.observer = new ResizeObserver(() => this.layout());
     this.observer.observe(screen);
     screen.addEventListener("pointerdown", (event) => {
-      if ((event.target as Element).closest("button")) return;
+      if (!this.enabled || (event.target as Element).closest("button")) return;
       event.preventDefault();
       screen.setPointerCapture(event.pointerId);
       this.contacts.set(event.pointerId, {
@@ -31,6 +37,7 @@ export class DesktopViewer {
       this.beginPinch();
     });
     screen.addEventListener("pointermove", (event) => {
+      if (!this.enabled) return;
       const old = this.contacts.get(event.pointerId);
       if (!old) return;
       const dx = event.clientX - old.x,
@@ -62,6 +69,7 @@ export class DesktopViewer {
         this.y += dy;
       }
       this.layout();
+      this.remember();
     });
     for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) {
       screen.addEventListener(name, (event) => {
@@ -80,6 +88,29 @@ export class DesktopViewer {
     this.zoom = 1;
     this.x = this.y = 0;
     this.layout();
+    this.remember();
+  }
+
+  setEnabled(enabled: boolean) {
+    this.enabled = enabled;
+    this.contacts.clear();
+    this.pinch = undefined;
+  }
+
+  setOrientation(orientation: "portrait" | "landscape") {
+    if (orientation === this.orientation) return;
+    this.orientation = orientation;
+    const state = this.states[orientation];
+    this.zoom = state.zoom;
+    this.x = state.x;
+    this.y = state.y;
+    this.contacts.clear();
+    this.pinch = undefined;
+    this.layout();
+  }
+
+  private remember() {
+    this.states[this.orientation] = { zoom: this.zoom, x: this.x, y: this.y };
   }
 
   private beginPinch() {
@@ -111,7 +142,13 @@ export class DesktopViewer {
   }
 
   private layout() {
-    const width = this.screen.clientWidth,
+    const width =
+        this.orientation === "landscape"
+          ? Math.min(
+              this.screen.clientWidth,
+              this.screen.clientHeight * this.ratio,
+            )
+          : this.screen.clientWidth,
       height = width / this.ratio;
     const limitX = Math.max(
       0,

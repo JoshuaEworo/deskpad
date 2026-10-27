@@ -21,6 +21,8 @@
 - [x] Native phone text field, desktop keys, modifiers, common shortcuts.
 - [x] Text-send box for phone paste/dictation.
 - [x] Preferences, connection status, reconnect, cleanup.
+- [x] Landscape relative desktop control with explicit Mouse/View modes and a docked collapsible bar.
+- [x] Separate in-session orientation views and portrait keyboard-intent restoration.
 - [ ] Validate native keyboard, IME, dictation, and viewport on physical iPhone.
 - [ ] Tune gesture thresholds and pointer speed through actual use.
 

@@ -10,7 +10,7 @@ Automated checks are necessary but not sufficient for a remote input tool. A syn
 | Windows ABI / Unicode packet tests | 2 skipped on Linux; configured in Windows CI |
 | Trackpad gesture tests | 5 passed |
 | Production TypeScript/client build | Passed |
-| Chromium integration with mobile viewport | 3 passed: keyboard-first layout/text, optional controls/drag ownership, side wheel, speed-setting migration, real multi-touch right click, focal zoom, and zoom preservation |
+| Chromium integration with mobile viewport | 4 passed: keyboard-first layout/text, optional controls/drag ownership, side wheel, speed-setting migration, real multi-touch right click, focal zoom, zoom preservation, and docked landscape Mouse/View isolation/rotation |
 | Desktop WebKit integration | Not run successfully locally: required browser system libraries unavailable; configured in CI |
 | Physical Windows + iPhone | Pending |
 
@@ -60,3 +60,6 @@ Unit tests cover authentication/expiry/revocation, attempt limits, invalid proto
 11. Sleep/wake laptop: UI reconnects when desktop is available. Lock/UAC/elevated app behavior must match documented limitations, not imply supported control.
 
 Record OS versions, display dimensions/scaling, host settings, and observed issues in a GitHub issue. Do not attach pairing codes, device credentials, personal desktop screenshots, or sensitive typed text.
+
+12. Rotate to landscape with the portrait keyboard open. The portrait pad disappears, keyboard is dismissed, the entire desktop fits above a non-overlapping dock, and proportions stay correct. Collapse/expand the dock and check that the reclaimed space goes to the desktop. Tiny branding appears on the collapsed rail.
+13. In landscape Mouse mode, test relative movement, left/right click, scrolling, and dragging on the desktop surface. Select View: pan/pinch must produce no PC input. Switch modes while holding a drag/modifier, then rotate back; no held input may remain. Confirm portrait zoom, pad settings, and keyboard intent are restored. On iPhone, record whether a tap is required to show the keyboard after rotation.

@@ -19,8 +19,28 @@ async function events(page: Page) {
   )[][];
 }
 
+async function portraitViewport(
+  page: Page,
+  height: number,
+  browserName: string,
+) {
+  if (browserName === "chromium") {
+    const session = await page.context().newCDPSession(page);
+    await session.send("Emulation.setDeviceMetricsOverride", {
+      width: 390,
+      height,
+      deviceScaleFactor: 3,
+      mobile: true,
+      screenWidth: 390,
+      screenHeight: 844,
+      screenOrientation: { type: "portraitPrimary", angle: 0 },
+    });
+  } else await page.setViewportSize({ width: 390, height });
+}
+
 test("keyboard-first controls keep the desktop full width as the visible viewport shrinks", async ({
   page,
+  browserName,
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -38,8 +58,10 @@ test("keyboard-first controls keep the desktop full width as the visible viewpor
         .join(""),
     )
     .toBe("Keyboard-first Deskpad");
-  for (const height of [844, 530, 420, 320]) {
-    await page.setViewportSize({ width: 390, height });
+  for (const height of browserName === "chromium"
+    ? [844, 530, 420, 320]
+    : [844, 530, 420]) {
+    await portraitViewport(page, height, browserName);
     await expect
       .poll(async () => (await page.locator("#picture").boundingBox())!.width)
       .toBeCloseTo(390, 0);
@@ -202,7 +224,7 @@ test("two-finger right click retains keyboard focus; pinch scale survives keyboa
     (200 - original.y) / original.height,
     2,
   );
-  await page.setViewportSize({ width: 390, height: 360 });
+  await portraitViewport(page, 360, browserName);
   await expect
     .poll(async () => (await page.locator("#picture").boundingBox())!.width)
     .toBeCloseTo(zoomed, 0);
@@ -211,4 +233,155 @@ test("two-finger right click retains keyboard focus; pinch scale survives keyboa
   await expect
     .poll(async () => (await page.locator("#picture").boundingBox())!.width)
     .toBeCloseTo(390, 0);
+});
+
+test("landscape docks controls, isolates Mouse and View gestures, and restores portrait", async ({
+  page,
+  browserName,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await pair(page);
+  if (browserName === "chromium") {
+    const touch = await page.context().newCDPSession(page);
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [
+        { x: 90, y: 350, id: 1 },
+        { x: 290, y: 350, id: 2 },
+      ],
+    });
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        { x: 40, y: 350, id: 1 },
+        { x: 340, y: 350, id: 2 },
+      ],
+    });
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  }
+  const portraitWidth = (await page.locator("#picture").boundingBox())!.width;
+  await page.getByRole("button", { name: "ctrl", exact: true }).click();
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(page.locator("#app")).toHaveClass(/landscape/);
+  await expect(page.locator(".pointing-surface")).toBeHidden();
+  await expect(page.locator(".screen-overlay")).toBeHidden();
+  await expect(page.locator("#typing")).not.toBeFocused();
+  await expect(
+    page.getByRole("button", { name: "Mouse", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(async () =>
+      (await events(page)).some(
+        (e) => e[0] === "key" && e[1] === "Control" && e[2] === false,
+      ),
+    )
+    .toBe(true);
+  const image = (await page.locator("#picture").boundingBox())!;
+  const screen = (await page.locator("#screen").boundingBox())!;
+  const dock = (await page.locator(".controls").boundingBox())!;
+  expect(image.x).toBeGreaterThanOrEqual(screen.x - 1);
+  expect(image.y).toBeGreaterThanOrEqual(screen.y - 1);
+  expect(image.x + image.width).toBeLessThanOrEqual(
+    screen.x + screen.width + 1,
+  );
+  expect(image.y + image.height).toBeLessThanOrEqual(dock.y + 1);
+  expect(image.width / image.height).toBeCloseTo(16 / 9, 2);
+  expect(screen.y + screen.height).toBeLessThanOrEqual(dock.y);
+  await page.screenshot({
+    path: `test-results/landscape-expanded-${test.info().project.name}.png`,
+  });
+  const transform = await page
+    .locator("#picture")
+    .evaluate((el) => el.style.transform);
+  const mouseBaseline = (await events(page)).length;
+  await page.mouse.move(220, 150);
+  await page.mouse.down();
+  await page.mouse.move(245, 165);
+  await page.mouse.up();
+  await page.mouse.click(250, 165);
+  await expect
+    .poll(async () =>
+      (await events(page)).slice(mouseBaseline).some((e) => e[0] === "move"),
+    )
+    .toBe(true);
+  await expect
+    .poll(async () =>
+      (await events(page))
+        .slice(mouseBaseline)
+        .some((e) => e[0] === "button" && e[1] === "left" && e[2] === true),
+    )
+    .toBe(true);
+  expect(
+    await page.locator("#picture").evaluate((el) => el.style.transform),
+  ).toBe(transform);
+  await page.getByRole("button", { name: "View", exact: true }).click();
+  const viewBaseline = (await events(page)).length;
+  await page.mouse.move(200, 100);
+  await page.mouse.down();
+  await page.mouse.move(250, 130);
+  await page.mouse.up();
+  if (browserName === "chromium") {
+    const touch = await page.context().newCDPSession(page);
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [
+        { x: 250, y: 150, id: 1 },
+        { x: 450, y: 150, id: 2 },
+      ],
+    });
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        { x: 180, y: 150, id: 1 },
+        { x: 520, y: 150, id: 2 },
+      ],
+    });
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await expect
+      .poll(async () => (await page.locator("#picture").boundingBox())!.width)
+      .toBeGreaterThan(image.width * 1.4);
+  }
+  expect(
+    (await events(page))
+      .slice(viewBaseline)
+      .filter((e) => ["move", "scroll", "button"].includes(String(e[0]))),
+  ).toEqual([]);
+  const beforeCollapse = (await page.locator("#screen").boundingBox())!.height;
+  await page.getByRole("button", { name: "Collapse hotkeys" }).click();
+  await expect(page.locator(".key-strip")).toBeHidden();
+  await expect(page.locator("#rail-brand")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "View", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(async () => (await page.locator("#screen").boundingBox())!.height)
+    .toBeGreaterThan(beforeCollapse);
+  const collapsedDock = (await page.locator(".controls").boundingBox())!;
+  const enlargedScreen = (await page.locator("#screen").boundingBox())!;
+  expect(enlargedScreen.y + enlargedScreen.height).toBeLessThanOrEqual(
+    collapsedDock.y,
+  );
+  await page.screenshot({
+    path: `test-results/landscape-collapsed-${test.info().project.name}.png`,
+  });
+  await page.getByRole("button", { name: "Expand hotkeys" }).click();
+  await expect(page.locator(".key-strip")).toBeVisible();
+  await page.getByRole("button", { name: "Open keyboard" }).click();
+  await expect(page.locator("#typing")).toBeFocused();
+  await page.getByRole("button", { name: "Hide keyboard" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator("#app")).not.toHaveClass(/landscape/);
+  await expect(page.locator(".pointing-surface")).toBeVisible();
+  await expect(page.locator("#typing")).toBeFocused();
+  await expect
+    .poll(async () => (await page.locator("#picture").boundingBox())!.width)
+    .toBeCloseTo(portraitWidth, 0);
+  expect(errors).toEqual([]);
 });

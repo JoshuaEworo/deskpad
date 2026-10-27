@@ -4,6 +4,7 @@ import { TrackpadGesture } from "./gestures";
 import { attachKeyboard } from "./keyboard";
 import type { Frame } from "./protocol";
 import { DesktopViewer } from "./viewer";
+import { attachTrackpadSurface } from "./trackpad-surface";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -11,6 +12,10 @@ const typing = $("typing");
 const desktop = $<HTMLImageElement>("desktop");
 const pad = $("trackpad");
 const viewer = new DesktopViewer($("screen"), $("picture"));
+let landscape = false;
+let controlMode: "mouse" | "view" = "mouse";
+let portraitKeyboard = false;
+let dockCollapsed = localStorage.getItem("deskpad.dockCollapsed") === "true";
 let keyboardWanted = false;
 let restoreKeyboard = false;
 let toastTimer: ReturnType<typeof setTimeout>;
@@ -62,6 +67,8 @@ const connection = new Connection({
     $("brand-status").title = labels[state];
     $("brand-status").setAttribute("aria-label", `Deskpad: ${labels[state]}`);
     $("status-dot").classList.toggle("live", state === "connected");
+    $("rail-status-dot").classList.toggle("live", state === "connected");
+    $("rail-brand").title = labels[state];
     if (state !== "connected") {
       clearVisualInputs();
       gesture.cancel();
@@ -134,46 +141,16 @@ $("natural-scroll").addEventListener("change", (event) => {
   localStorage.setItem("deskpad.natural", String(gesture.natural));
 });
 
-let holdTimer: ReturnType<typeof setTimeout>;
-const padContacts = new Set<number>();
-pad.addEventListener("pointerdown", (event) => {
-  padContacts.add(event.pointerId);
-  event.preventDefault();
-  pad.setPointerCapture(event.pointerId);
-  pad.classList.add("engaged");
-  gesture.down(
-    event.pointerId,
-    event.clientX,
-    event.clientY,
-    performance.now(),
-  );
-  clearTimeout(holdTimer);
-  holdTimer = setTimeout(() => gesture.hold(performance.now()), 365);
-});
-pad.addEventListener("pointermove", (event) => {
-  if (pad.hasPointerCapture(event.pointerId))
-    gesture.move(event.pointerId, event.clientX, event.clientY);
-});
-pad.addEventListener("pointerup", (event) => {
-  padContacts.delete(event.pointerId);
-  gesture.up(event.pointerId, performance.now());
-  pad.classList.remove("engaged");
-  clearTimeout(holdTimer);
-});
-pad.addEventListener("pointercancel", () => {
-  padContacts.clear();
-  gesture.cancel();
-  pad.classList.remove("engaged");
-  clearTimeout(holdTimer);
-});
-pad.addEventListener("lostpointercapture", (event) => {
-  if (!padContacts.has(event.pointerId)) return;
-  padContacts.clear();
-  gesture.cancel();
-  pad.classList.remove("engaged");
-  clearTimeout(holdTimer);
-});
-pad.addEventListener("contextmenu", (event) => event.preventDefault());
+const cancelPortraitSurface = attachTrackpadSurface(
+  pad,
+  gesture,
+  () => !landscape,
+);
+const cancelLandscapeSurface = attachTrackpadSurface(
+  $("screen"),
+  gesture,
+  () => landscape && controlMode === "mouse",
+);
 
 function clearModifiers() {
   for (const key of modifiers)
@@ -403,6 +380,64 @@ $("reset-view").addEventListener("click", () => {
   closeSettings();
 });
 
+function setControlMode(mode: "mouse" | "view") {
+  releaseInputs();
+  controlMode = mode;
+  viewer.setEnabled(!landscape || mode === "view");
+  $("app").classList.toggle("view-mode", landscape && mode === "view");
+  $("mouse-mode").setAttribute("aria-pressed", String(mode === "mouse"));
+  $("view-mode").setAttribute("aria-pressed", String(mode === "view"));
+  $("screen").setAttribute(
+    "aria-label",
+    landscape && mode === "mouse"
+      ? "Desktop trackpad. Slide to move the mouse; tap to click; two fingers to scroll."
+      : "Laptop screen. Pinch to zoom; drag to pan.",
+  );
+}
+$("mouse-mode").addEventListener("click", () => setControlMode("mouse"));
+$("view-mode").addEventListener("click", () => setControlMode("view"));
+function updateDock() {
+  $("app").classList.toggle("dock-collapsed", dockCollapsed);
+  $("bar-toggle").textContent = dockCollapsed ? "▴" : "▾";
+  $("bar-toggle").setAttribute("aria-expanded", String(!dockCollapsed));
+  $("bar-toggle").setAttribute(
+    "aria-label",
+    dockCollapsed ? "Expand hotkeys" : "Collapse hotkeys",
+  );
+}
+$("bar-toggle").addEventListener("click", () => {
+  releaseInputs();
+  dockCollapsed = !dockCollapsed;
+  localStorage.setItem("deskpad.dockCollapsed", String(dockCollapsed));
+  updateDock();
+});
+updateDock();
+function updateOrientation() {
+  const type = window.screen.orientation?.type;
+  const legacyAngle = (window as Window & { orientation?: number }).orientation;
+  const next = type
+    ? type.startsWith("landscape")
+    : typeof legacyAngle === "number"
+      ? Math.abs(legacyAngle) === 90
+      : window.screen.width > window.screen.height;
+  if (next === landscape) return;
+  releaseInputs();
+  if (next) {
+    portraitKeyboard = keyboardWanted;
+    keyboard(false);
+  }
+  landscape = next;
+  $("app").classList.toggle("landscape", landscape);
+  viewer.setOrientation(landscape ? "landscape" : "portrait");
+  $("reset-view").textContent = landscape ? "Fit desktop" : "Fit width";
+  setControlMode("mouse");
+  if (!landscape && portraitKeyboard && desiredConnection) keyboard(true);
+}
+window.screen.orientation?.addEventListener("change", updateOrientation);
+window.addEventListener("orientationchange", updateOrientation);
+window.addEventListener("resize", updateOrientation);
+updateOrientation();
+
 // iOS shrinks VisualViewport when the native keyboard opens, not always the layout viewport.
 function viewport() {
   const v = window.visualViewport;
@@ -420,6 +455,8 @@ window.visualViewport?.addEventListener("scroll", viewport);
 window.addEventListener("resize", viewport);
 viewport();
 function releaseInputs() {
+  cancelPortraitSurface();
+  cancelLandscapeSurface();
   wheelPointer = undefined;
   wheel.classList.remove("engaged");
   gesture.cancel();
@@ -436,6 +473,8 @@ document.addEventListener("visibilitychange", () => {
 });
 $("settings-toggle").addEventListener("click", openSettings);
 $("brand-status").addEventListener("click", openSettings);
+$("rail-brand").addEventListener("click", openSettings);
+$("landscape-settings").addEventListener("click", openSettings);
 $("settings-close").addEventListener("click", () => closeSettings());
 $("settings").addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
@@ -486,7 +525,7 @@ $("pair-form").addEventListener("submit", async (event) => {
   button.disabled = true;
   // Safari needs a user gesture to open the keyboard. Transfer focus now,
   // while the submit gesture is active, rather than after the network response.
-  keyboard(true);
+  if (!landscape) keyboard(true);
   try {
     const response = await fetch("/api/pair", {
       method: "POST",

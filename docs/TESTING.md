@@ -2,6 +2,20 @@
 
 Automated checks are necessary but not sufficient for a remote input tool. A synthetic desktop does not validate Windows capture, SendInput delivery, Safari's native keyboard, or actual Wi-Fi latency.
 
+## Initial implementation results
+
+| Check | Result in development environment |
+| --- | --- |
+| Host protocol, pairing, lifecycle | 12 passed |
+| Windows ABI / Unicode packet tests | 2 skipped on Linux; configured in Windows CI |
+| Trackpad gesture tests | 5 passed |
+| Production TypeScript/client build | Passed |
+| Chromium integration with mobile viewport | 1 passed, including real demo-host video and text delivery |
+| Desktop WebKit integration | Not run successfully locally: required browser system libraries unavailable; configured in CI |
+| Physical Windows + iPhone | Pending |
+
+No Windows executable or physical-device performance result is claimed by these checks.
+
 ## Automated commands
 
 ```text

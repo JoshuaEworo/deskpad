@@ -1,0 +1,89 @@
+/** Fit is based only on width. Keyboard height changes never reduce desktop scale. */
+export class DesktopViewer {
+  private ratio = 16 / 9;
+  private zoom = 1;
+  private x = 0;
+  private y = 0;
+  private contacts = new Map<number, { x: number; y: number }>();
+  private observer: ResizeObserver;
+
+  constructor(
+    private screen: HTMLElement,
+    private picture: HTMLElement,
+  ) {
+    this.observer = new ResizeObserver(() => this.layout());
+    this.observer.observe(screen);
+    screen.addEventListener("pointerdown", (event) => {
+      if ((event.target as Element).closest("button")) return;
+      event.preventDefault();
+      screen.setPointerCapture(event.pointerId);
+      this.contacts.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+    });
+    screen.addEventListener("pointermove", (event) => {
+      const old = this.contacts.get(event.pointerId);
+      if (!old) return;
+      const before = this.distance();
+      const dx = event.clientX - old.x,
+        dy = event.clientY - old.y;
+      this.contacts.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+      if (this.contacts.size === 2 && before > 0) {
+        this.zoom = Math.max(
+          1,
+          Math.min(5, (this.zoom * this.distance()) / before),
+        );
+      } else if (this.contacts.size === 1) {
+        // At fit width a short viewport can still crop the image vertically.
+        this.x += dx;
+        this.y += dy;
+      }
+      this.layout();
+    });
+    for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) {
+      screen.addEventListener(name, (event) =>
+        this.contacts.delete((event as PointerEvent).pointerId),
+      );
+    }
+  }
+
+  setAspect(width: number, height: number) {
+    this.ratio = width / height;
+    this.layout();
+  }
+
+  reset() {
+    this.zoom = 1;
+    this.x = this.y = 0;
+    this.layout();
+  }
+
+  private distance() {
+    const points = [...this.contacts.values()];
+    return points.length === 2
+      ? Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y)
+      : 0;
+  }
+
+  private layout() {
+    const width = this.screen.clientWidth,
+      height = width / this.ratio;
+    const limitX = Math.max(
+      0,
+      (width * this.zoom - this.screen.clientWidth) / 2,
+    );
+    const limitY = Math.max(
+      0,
+      (height * this.zoom - this.screen.clientHeight) / 2,
+    );
+    this.x = Math.max(-limitX, Math.min(limitX, this.x));
+    this.y = Math.max(-limitY, Math.min(limitY, this.y));
+    this.picture.style.width = `${width}px`;
+    this.picture.style.height = `${height}px`;
+    this.picture.style.transform = `translate(-50%, -50%) translate(${this.x}px, ${this.y}px) scale(${this.zoom})`;
+  }
+}

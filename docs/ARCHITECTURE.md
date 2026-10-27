@@ -20,7 +20,8 @@ The first release is a LAN tool, not a hosted service or gaming client. One proc
 | `web/src/connection.ts` | Transport, heartbeat, reconnect, input ordering/coalescing |
 | `gestures.ts` | DOM-independent trackpad gesture state machine |
 | `keyboard.ts` | Native phone input and composition handling |
-| `main.ts` | UI state, viewer transforms, settings, session orchestration |
+| `viewer.ts` | Width-based desktop fitting, content-aware pan bounds, pinch zoom, resize preservation |
+| `main.ts` | UI state, compact layout, settings, session orchestration |
 
 ## Connections and latency
 
@@ -42,7 +43,9 @@ Native calls are intentionally narrow. No shell, process launch, arbitrary hotke
 
 ## iPhone interaction
 
-VisualViewport events size the app to the space actually visible above the native keyboard. This does not rely on the Chromium-only VirtualKeyboard API. The typing field is real, focusable, and 16px to avoid small-input Safari zoom. Composing text stays local until composition commit. Native keyboard behavior must still be tested on physical iOS.
+VisualViewport events size the app to the space actually visible above the native keyboard. This does not rely on the Chromium-only VirtualKeyboard API. A real focusable 16px contenteditable input sink accepts native text without occupying a visible typing row. Composition stays local until commit; paste is handled as plaintext. Pairing transfers focus synchronously during the Connect gesture, before network awaits. A previously paired page offers a single keyboard tap because Safari does not guarantee software-keyboard opening without a user gesture. Native keyboard behavior must still be tested on physical iOS.
+
+The desktop viewer derives its base dimensions from width only. A shorter keyboard-visible viewport clips/pans the viewer if necessary, rather than shrinking its width or clearing zoom. Pan bounds use the actual scaled image dimensions. Trackpad height is a separate pixel preference (default 80px), capped on short viewports; old percentage-based screen sizing is intentionally not reused. The connected layout has no header, status row, visible input box, or footer. Tiny branding/status and a menu overlay the desktop. Optional mouse controls and detailed actions stay in the menu.
 
 Trackpad gestures own a complete touch sequence. When one finger remains after a two-finger gesture, it cannot turn into a cursor movement or click. Cancellation releases a drag. Screen gestures belong to the viewer, not the trackpad; they can never generate host pointer input. Preferences persist only locally on the phone.
 

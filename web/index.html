@@ -18,20 +18,10 @@
   </head>
   <body>
     <main id="app">
-      <header class="topbar">
+      <header class="topbar" aria-label="Deskpad">
         <a class="brand" href="/" aria-label="Deskpad home"
-          ><span class="brand-mark" aria-hidden="true">d</span>deskpad<span
-            class="alpha"
-            >ALPHA</span
-          ></a
+          ><span class="brand-mark" aria-hidden="true">d</span>deskpad</a
         >
-        <button
-          id="settings-toggle"
-          class="icon-button"
-          aria-label="Open settings"
-        >
-          ⚙
-        </button>
       </header>
       <section id="pairing" class="pairing" aria-labelledby="pair-title" hidden>
         <div class="eyebrow">YOUR COMPUTER. WITHIN REACH.</div>
@@ -63,23 +53,14 @@
         hidden
         aria-label="Remote desktop controls"
       >
-        <div class="session-bar">
-          <span
-            ><i id="status-dot"></i
-            ><span id="status" role="status">Connecting…</span></span
-          ><span id="metrics">LOCAL CONNECTION</span>
-        </div>
         <div
           id="screen"
           class="screen"
           aria-label="Laptop screen. Pinch to zoom; drag to pan."
         >
           <div id="picture" class="picture">
-            <img id="desktop" alt="Live laptop desktop" draggable="false" /><svg
-              id="cursor"
-              viewBox="0 0 24 30"
-              aria-hidden="true"
-            >
+            <img id="desktop" alt="Live laptop desktop" draggable="false" />
+            <svg id="cursor" viewBox="0 0 24 30" aria-hidden="true">
               <path
                 d="M2 2 20 17 12 18 9 26Z"
                 fill="white"
@@ -89,103 +70,134 @@
             </svg>
           </div>
           <div id="screen-empty" class="screen-empty">
-            Your desktop will appear here.
+            Connecting to your desktop…
           </div>
-          <button
-            id="reset-view"
-            class="screen-chip"
-            aria-label="Reset desktop zoom"
-          >
-            Fit screen ↙
-          </button>
+          <div class="screen-overlay">
+            <button
+              id="brand-status"
+              class="session-brand"
+              aria-label="Deskpad connection details"
+            >
+              <i id="status-dot"></i><span>deskpad</span
+              ><small id="demo-label" hidden>demo</small>
+            </button>
+            <span id="status" class="sr-only" role="status">Connecting…</span>
+            <button
+              id="settings-toggle"
+              class="menu-button"
+              aria-label="Open settings"
+              aria-expanded="false"
+            >
+              ···
+            </button>
+          </div>
         </div>
         <div
           id="divider"
           class="divider"
           role="separator"
           tabindex="0"
-          aria-label="Resize desktop area"
+          aria-label="Resize trackpad area"
           aria-orientation="horizontal"
-          aria-valuemin="22"
-          aria-valuemax="65"
-          aria-valuenow="38"
+          aria-valuemin="52"
+          aria-valuemax="200"
+          aria-valuenow="80"
         >
           <span></span>
-        </div>
-        <div class="pad-caption">
-          <span>TRACKPAD</span><span id="pad-hint">Two fingers to scroll</span>
         </div>
         <div
           id="trackpad"
           class="trackpad"
-          aria-label="Mouse trackpad"
+          aria-label="Mouse trackpad. Tap to click; two-finger tap to right-click; two fingers to scroll."
           tabindex="0"
         >
-          <div class="pad-center" aria-hidden="true">
-            <span>+</span><small>A little room to move.</small>
-          </div>
+          <span class="pad-mark" aria-hidden="true"></span>
         </div>
-        <div class="mouse-row">
+        <div id="mouse-buttons" class="mouse-row" hidden>
           <button id="mouse-left" aria-label="Left mouse button. Hold to drag.">
-            Left click</button
-          ><button id="drag-lock" aria-pressed="false">Drag lock</button
-          ><button id="mouse-right" aria-label="Right mouse button">
-            Right click
+            Left
+          </button>
+          <button id="mouse-right" aria-label="Right mouse button">
+            Right
           </button>
         </div>
-        <div class="key-strip" aria-label="Desktop keys">
-          <button data-key="Escape">esc</button
-          ><button data-key="Tab">tab ⇥</button
-          ><button data-mod="Control" aria-pressed="false">ctrl</button
-          ><button data-mod="Alt" aria-pressed="false">alt</button
-          ><button data-mod="Shift" aria-pressed="false">shift</button
-          ><button data-mod="Meta" aria-pressed="false">win</button
-          ><button data-key="ArrowLeft" aria-label="Left arrow">←</button
-          ><button data-key="ArrowDown" aria-label="Down arrow">↓</button
-          ><button data-key="ArrowUp" aria-label="Up arrow">↑</button
-          ><button data-key="ArrowRight" aria-label="Right arrow">→</button
-          ><button data-key="Backspace" aria-label="Backspace">⌫</button
-          ><button data-key="Enter">enter ↵</button>
-        </div>
-        <div id="shortcuts" class="shortcuts" hidden>
-          <button data-shortcut="Control,c">Copy</button
-          ><button data-shortcut="Control,v">Paste on PC</button
-          ><button data-shortcut="Control,z">Undo</button
-          ><button data-shortcut="Control,y">Redo</button
-          ><button data-shortcut="Control,a">Select all</button
-          ><button data-shortcut="Alt,Tab">Switch app</button
-          ><button id="paste-text">Send text…</button>
-        </div>
-        <div id="typing-row" class="typing-row" hidden>
-          <label for="typing" class="sr-only">Type on your laptop</label
-          ><textarea
-            id="typing"
-            rows="1"
-            enterkeyhint="enter"
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck="false"
-            placeholder="Type on your laptop…"
-          ></textarea
-          ><button id="hide-keyboard" aria-label="Hide keyboard">Done</button>
-        </div>
-        <footer class="bottom-bar">
+        <div class="controls">
+          <div class="key-strip" aria-label="Desktop keys">
+            <button data-key="Escape">esc</button
+            ><button data-key="Tab">tab</button>
+            <button data-mod="Control" aria-pressed="false">ctrl</button
+            ><button data-mod="Alt" aria-pressed="false">alt</button
+            ><button data-mod="Shift" aria-pressed="false">shift</button>
+            <button data-key="ArrowLeft" aria-label="Left arrow">←</button
+            ><button data-key="ArrowDown" aria-label="Down arrow">↓</button
+            ><button data-key="ArrowUp" aria-label="Up arrow">↑</button
+            ><button data-key="ArrowRight" aria-label="Right arrow">→</button>
+            <button data-mod="Meta" aria-pressed="false">win</button
+            ><button data-key="Backspace" aria-label="Backspace">⌫</button
+            ><button data-key="Enter">enter</button>
+            <button data-key="Home">home</button
+            ><button data-key="End">end</button
+            ><button data-key="PageUp">pg up</button
+            ><button data-key="PageDown">pg dn</button
+            ><button data-key="Delete">del</button>
+            <button data-key="F1">F1</button><button data-key="F2">F2</button
+            ><button data-key="F3">F3</button><button data-key="F4">F4</button
+            ><button data-key="F5">F5</button><button data-key="F6">F6</button
+            ><button data-key="F7">F7</button><button data-key="F8">F8</button
+            ><button data-key="F9">F9</button><button data-key="F10">F10</button
+            ><button data-key="F11">F11</button
+            ><button data-key="F12">F12</button>
+          </div>
           <button
             id="keyboard-toggle"
             class="keyboard-button"
+            aria-label="Open keyboard"
             aria-expanded="false"
           >
-            <span aria-hidden="true">⌨</span> Keyboard</button
-          ><button id="shortcuts-toggle" aria-expanded="false">
-            Shortcuts <span aria-hidden="true">⌘</span></button
-          ><button id="reconnect" aria-label="Reconnect">↻</button>
-        </footer>
+            <span aria-hidden="true">⌨</span
+            ><span class="keyboard-chevron" aria-hidden="true">▾</span>
+          </button>
+        </div>
       </section>
-      <aside id="settings" class="settings" hidden aria-label="Settings">
+      <div
+        id="typing"
+        class="keyboard-sink"
+        contenteditable="true"
+        role="textbox"
+        aria-label="Type on your laptop"
+        aria-multiline="true"
+        inputmode="text"
+        enterkeyhint="enter"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        tabindex="-1"
+      ></div>
+      <aside
+        id="settings"
+        class="settings"
+        hidden
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+      >
         <div class="settings-header">
-          <h2>Make it yours.</h2>
+          <h2 id="settings-title">deskpad</h2>
           <button id="settings-close" aria-label="Close settings">✕</button>
         </div>
+        <div class="connection-details">
+          <span id="connection-detail">Connecting…</span
+          ><span id="metrics">LOCAL CONNECTION</span>
+        </div>
+        <div class="menu-actions">
+          <button id="reset-view">Fit width</button
+          ><button id="drag-lock" aria-pressed="false">Drag lock</button
+          ><button id="reconnect" aria-label="Reconnect">Reconnect</button>
+        </div>
+        <label class="check-row"
+          ><input id="show-mouse-buttons" type="checkbox" /> Show mouse
+          buttons</label
+        >
         <label for="sensitivity"
           >Pointer speed <output id="speed-value">1.5×</output></label
         ><input
@@ -200,16 +212,21 @@
           ><input id="natural-scroll" type="checkbox" checked /> Natural
           scrolling</label
         >
+        <div id="shortcuts" class="shortcuts" aria-label="Shortcuts">
+          <button data-shortcut="Control,c">Copy</button
+          ><button data-shortcut="Control,v">Paste on PC</button
+          ><button data-shortcut="Control,z">Undo</button
+          ><button data-shortcut="Control,y">Redo</button
+          ><button data-shortcut="Control,a">Select all</button
+          ><button data-shortcut="Alt,Tab">Switch app</button
+          ><button id="paste-text">Send text…</button>
+        </div>
         <p class="settings-help">
-          Tap to click. Two-finger tap to right-click. Hold, then move to drag.
-          Pinch the desktop to zoom.
+          Tap to click. Two-finger tap to right-click. Two fingers to scroll.
+          Hold, then move to drag. Pull the divider up for more trackpad room.
         </p>
         <button id="disconnect">Disconnect</button
         ><button id="forget">Forget this phone</button>
-        <p class="settings-help">
-          Keep your laptop awake and the host running. Use only on a trusted
-          network.
-        </p>
       </aside>
       <dialog id="text-dialog">
         <form method="dialog">

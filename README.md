@@ -8,9 +8,9 @@ A free, local-first remote desktop for a Windows laptop and an iPhone. Hold your
 
 ## What is here
 
-- Live desktop with pinch zoom, pan, Fit, and a draggable screen/trackpad divider.
-- Separate trackpad with pointer speed, tap, two-finger right click, scrolling, long-press drag, and double-tap drag.
-- Explicit mouse buttons and drag lock for precise selection.
+- Edge-to-edge desktop fitted to width, with pinch zoom/pan preserved when the keyboard opens.
+- Slim, resizable trackpad with tap, two-finger right click, scrolling, long-press drag, and double-tap drag.
+- Optional mouse buttons and drag lock; tiny Deskpad branding and a menu float over the desktop.
 - Native phone text input, desktop keys, one-shot modifiers, shortcuts, and a text-send box for pasting or dictation.
 - QR address and six-digit pairing; remembered phone credentials expire after 30 days.
 - One controller at a time; reconnect without replaying old input; held-input cleanup.
@@ -44,6 +44,8 @@ cd ..
 3. Enter the pairing code printed in the host window.
 4. Optionally use Safari **Share → Add to Home Screen**. Keep the host window open.
 
+Pairing transfers focus to the phone keyboard during your Connect tap. When reopening an already-paired page, tap the small keyboard button once; Safari may require that user gesture to show the native keyboard. Tap it again to dismiss. The screen keeps its width/zoom while the keyboard opens. The divider adjusts trackpad height; mouse buttons, shortcuts, Fit width, drag lock, and connection details are under the floating `···` menu.
+
 No QR discovery across networks: scanning opens the laptop's LAN address. If automatic address selection is wrong (VPN or multiple adapters), pass the laptop's Wi-Fi IPv4 address:
 
 ```powershell
@@ -72,13 +74,13 @@ Host options:
 | Right click | Two-finger tap, or right mouse button |
 | Scroll | Two fingers; reverse direction in settings |
 | Drag | Hold still briefly, then move; double-tap and drag also works |
-| Persistent drag | Drag lock; tap again to release |
+| Persistent drag | Menu → Drag lock; opening the menu releases held input |
 | Zoom desktop | Pinch the screen area |
 | Pan desktop | Drag the screen while zoomed |
-| Type | Keyboard button; desktop keys sit above it |
+| Type | Keyboard stays focused while using the trackpad/desktop keys; bottom-right button shows/hides it |
 | Shortcut | Select Ctrl/Alt/Shift/Win, then a letter or desktop key; modifiers release afterward |
-| Paste phone text | Shortcuts → Send text; paste or dictate, then send |
-| Paste laptop clipboard | Shortcuts → Paste on PC |
+| Paste phone text | Menu → Send text; paste or dictate, then send |
+| Paste laptop clipboard | Menu → Paste on PC |
 
 Desktop controls are local to this UI; clicking inside the video does not click the PC. Pinching or panning the screen never moves the Windows pointer.
 

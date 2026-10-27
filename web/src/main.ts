@@ -3,12 +3,16 @@ import { Connection } from "./connection";
 import { TrackpadGesture } from "./gestures";
 import { attachKeyboard } from "./keyboard";
 import type { Frame } from "./protocol";
+import { DesktopViewer } from "./viewer";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
-const typing = $<HTMLTextAreaElement>("typing");
+const typing = $("typing");
 const desktop = $<HTMLImageElement>("desktop");
 const pad = $("trackpad");
+const viewer = new DesktopViewer($("screen"), $("picture"));
+let keyboardWanted = false;
+let restoreKeyboard = false;
 let toastTimer: ReturnType<typeof setTimeout>;
 function toast(message: string) {
   $("toast").textContent = message;
@@ -54,6 +58,9 @@ const connection = new Connection({
       unpaired: "Pair this phone",
     };
     $("status").textContent = labels[state];
+    $("connection-detail").textContent = labels[state];
+    $("brand-status").title = labels[state];
+    $("brand-status").setAttribute("aria-label", `Deskpad: ${labels[state]}`);
     $("status-dot").classList.toggle("live", state === "connected");
     if (state !== "connected") {
       clearVisualInputs();
@@ -62,6 +69,8 @@ const connection = new Connection({
     if (state === "unpaired") {
       $("workspace").hidden = true;
       $("pairing").hidden = false;
+      $("app").classList.remove("in-session");
+      keyboard(false);
     }
     if (state === "busy")
       toast(
@@ -83,10 +92,7 @@ const connection = new Connection({
     imageUrl = url;
     frame = metadata;
     position = metadata.cursor;
-    const screen = $("screen");
-    const ratio = metadata.width / metadata.height;
-    const w = Math.min(screen.clientWidth, screen.clientHeight * ratio);
-    $("picture").style.width = `${w}px`;
+    viewer.setAspect(metadata.width, metadata.height);
     $("screen-empty").hidden = true;
     drawCursor();
     await new Promise<void>((resolve) =>
@@ -224,6 +230,7 @@ document
         type: "shortcut",
         keys: button.dataset.shortcut!.split(","),
       });
+      closeSettings();
     }),
   );
 
@@ -252,32 +259,46 @@ $("drag-lock").addEventListener("click", () => {
     action: dragLocked ? "down" : "up",
   });
   $("drag-lock").setAttribute("aria-pressed", String(dragLocked));
+  closeSettings();
 });
 
 function keyboard(open: boolean) {
-  $("typing-row").hidden = !open;
+  keyboardWanted = open;
+  $("app").classList.toggle("keyboard-open", open);
   $("keyboard-toggle").setAttribute("aria-expanded", String(open));
+  $("keyboard-toggle").setAttribute(
+    "aria-label",
+    open ? "Hide keyboard" : "Open keyboard",
+  );
   if (open) typing.focus({ preventScroll: true });
   else typing.blur();
 }
-$("keyboard-toggle").addEventListener("click", () =>
-  keyboard($("typing-row").hidden),
-);
-$("hide-keyboard").addEventListener("click", () => keyboard(false));
-// Keep native keyboard focus while operating desktop keys or the trackpad.
+$("keyboard-toggle").addEventListener("click", () => keyboard(!keyboardWanted));
+typing.addEventListener("blur", () => keyboard(false));
+// Do not let desktop controls dismiss the native keyboard.
+// Menus explicitly manage focus; the scrollable key row stays focus-neutral on touch.
 document
-  .querySelectorAll(".key-strip button,.mouse-row button,.shortcuts button")
-  .forEach((button) =>
-    button.addEventListener("pointerdown", (event) => event.preventDefault()),
-  );
-$("shortcuts-toggle").addEventListener("click", () => {
-  $("shortcuts").hidden = !$("shortcuts").hidden;
-  $("shortcuts-toggle").setAttribute(
-    "aria-expanded",
-    String(!$("shortcuts").hidden),
-  );
-});
+  .querySelectorAll(
+    ".controls button,.mouse-row button,.session-brand,.menu-button",
+  )
+  .forEach((button) => {
+    button.addEventListener("pointerdown", (event) => event.preventDefault());
+  });
+function openSettings() {
+  restoreKeyboard = keyboardWanted;
+  keyboard(false);
+  releaseInputs();
+  $("settings").hidden = false;
+  $("settings-toggle").setAttribute("aria-expanded", "true");
+  $("settings-close").focus({ preventScroll: true });
+}
+function closeSettings(resume = true) {
+  $("settings").hidden = true;
+  $("settings-toggle").setAttribute("aria-expanded", "false");
+  if (resume && restoreKeyboard && desiredConnection) keyboard(true);
+}
 $("paste-text").addEventListener("click", () => {
+  closeSettings(false);
   keyboard(false);
   $<HTMLDialogElement>("text-dialog").showModal();
 });
@@ -290,83 +311,46 @@ $<HTMLDialogElement>("text-dialog").addEventListener("close", () => {
   }
 });
 
-let size = Number(localStorage.getItem("deskpad.screen") || 38);
-if (!Number.isFinite(size)) size = 38;
-function resizeScreen(value: number) {
-  size = Math.max(22, Math.min(65, value));
-  document.documentElement.style.setProperty("--screen", `${size}%`);
-  $("divider").setAttribute("aria-valuenow", String(Math.round(size)));
-  localStorage.setItem("deskpad.screen", String(size));
+// Store trackpad height in pixels, not a screen percentage that shrinks the desktop.
+let padHeight = Number(localStorage.getItem("deskpad.padHeight") || 80);
+if (!Number.isFinite(padHeight)) padHeight = 80;
+function resizePad(value: number) {
+  padHeight = Math.max(52, Math.min(200, value));
+  document.documentElement.style.setProperty("--pad-height", `${padHeight}px`);
+  $("divider").setAttribute("aria-valuenow", String(Math.round(padHeight)));
+  localStorage.setItem("deskpad.padHeight", String(padHeight));
 }
-resizeScreen(size);
+resizePad(padHeight);
+let dividerStart = 0,
+  dividerHeight = 0;
 $("divider").addEventListener("pointerdown", (event) => {
   event.preventDefault();
   $("divider").setPointerCapture(event.pointerId);
+  dividerStart = event.clientY;
+  dividerHeight = pad.clientHeight;
 });
 $("divider").addEventListener("pointermove", (event) => {
-  if (!$("divider").hasPointerCapture(event.pointerId)) return;
-  const workspace = $("workspace").getBoundingClientRect(),
-    screen = $("screen").getBoundingClientRect();
-  resizeScreen(((event.clientY - screen.top) / workspace.height) * 100);
+  if ($("divider").hasPointerCapture(event.pointerId))
+    resizePad(dividerHeight + dividerStart - event.clientY);
 });
 $("divider").addEventListener("keydown", (event) => {
   if (event.key === "ArrowUp" || event.key === "ArrowDown") {
     event.preventDefault();
-    resizeScreen(size + (event.key === "ArrowUp" ? -3 : 3));
+    resizePad(padHeight + (event.key === "ArrowUp" ? 12 : -12));
   }
 });
-
-// Screen gestures transform only the viewer; they never move the Windows cursor.
-const contacts = new Map<number, { x: number; y: number }>();
-let zoom = 1,
-  panX = 0,
-  panY = 0;
-function transform() {
-  const stage = $("screen");
-  panX = Math.max(
-    (-stage.clientWidth * (zoom - 1)) / 2,
-    Math.min((stage.clientWidth * (zoom - 1)) / 2, panX),
-  );
-  panY = Math.max(
-    (-stage.clientHeight * (zoom - 1)) / 2,
-    Math.min((stage.clientHeight * (zoom - 1)) / 2, panY),
-  );
-  $("picture").style.transform =
-    `translate(${panX}px,${panY}px) scale(${zoom})`;
-}
-const distance = () => {
-  const p = [...contacts.values()];
-  return p.length === 2 ? Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) : 0;
-};
-$("screen").addEventListener("pointerdown", (event) => {
-  if ((event.target as HTMLElement).closest("button")) return;
-  event.preventDefault();
-  $("screen").setPointerCapture(event.pointerId);
-  contacts.set(event.pointerId, { x: event.clientX, y: event.clientY });
+const mousePreference = $<HTMLInputElement>("show-mouse-buttons");
+mousePreference.checked =
+  localStorage.getItem("deskpad.mouseButtons") === "true";
+$("mouse-buttons").hidden = !mousePreference.checked;
+mousePreference.addEventListener("change", () => {
+  releaseInputs();
+  $("mouse-buttons").hidden = !mousePreference.checked;
+  localStorage.setItem("deskpad.mouseButtons", String(mousePreference.checked));
 });
-$("screen").addEventListener("pointermove", (event) => {
-  const old = contacts.get(event.pointerId);
-  if (!old) return;
-  const before = distance();
-  const dx = event.clientX - old.x,
-    dy = event.clientY - old.y;
-  contacts.set(event.pointerId, { x: event.clientX, y: event.clientY });
-  if (contacts.size === 2 && before > 0)
-    zoom = Math.max(1, Math.min(4, (zoom * distance()) / before));
-  else if (zoom > 1) {
-    panX += dx;
-    panY += dy;
-  }
-  transform();
-});
-for (const event of ["pointerup", "pointercancel"])
-  $("screen").addEventListener(event, (event) =>
-    contacts.delete((event as PointerEvent).pointerId),
-  );
 $("reset-view").addEventListener("click", () => {
-  zoom = 1;
-  panX = panY = 0;
-  transform();
+  viewer.reset();
+  closeSettings();
 });
 
 // iOS shrinks VisualViewport when the native keyboard opens, not always the layout viewport.
@@ -398,22 +382,25 @@ document.addEventListener("visibilitychange", () => {
     connection.stop();
   } else if (desiredConnection) connection.start();
 });
-$("settings-toggle").addEventListener("click", () => {
-  releaseInputs();
-  $("settings").hidden = !$("settings").hidden;
+$("settings-toggle").addEventListener("click", openSettings);
+$("brand-status").addEventListener("click", openSettings);
+$("settings-close").addEventListener("click", () => closeSettings());
+$("settings").addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeSettings();
+  }
 });
-$("settings-close").addEventListener(
-  "click",
-  () => ($("settings").hidden = true),
-);
 $("disconnect").addEventListener("click", () => {
   desiredConnection = false;
   connection.stop();
-  $("settings").hidden = true;
+  keyboard(false);
+  closeSettings(false);
 });
 $("reconnect").addEventListener("click", () => {
   desiredConnection = true;
   connection.start();
+  closeSettings();
 });
 $("forget").addEventListener("click", async () => {
   desiredConnection = false;
@@ -426,14 +413,15 @@ $("forget").addEventListener("click", async () => {
   $("settings").hidden = true;
   $("workspace").hidden = true;
   $("pairing").hidden = false;
+  $("app").classList.remove("in-session");
+  keyboard(false);
 });
 
 function enterWorkspace(demo: boolean) {
   $("pairing").hidden = true;
   $("workspace").hidden = false;
-  $("pad-hint").textContent = demo
-    ? "Demo · no real computer input"
-    : "Two fingers to scroll";
+  $("app").classList.add("in-session");
+  $("demo-label").hidden = !demo;
   desiredConnection = true;
   connection.start();
 }
@@ -442,12 +430,16 @@ $("pair-form").addEventListener("submit", async (event) => {
   $("pair-error").textContent = "";
   const button =
     document.querySelector<HTMLButtonElement>("#pair-form button")!;
+  const code = $<HTMLInputElement>("pair-code").value;
   button.disabled = true;
+  // Safari needs a user gesture to open the keyboard. Transfer focus now,
+  // while the submit gesture is active, rather than after the network response.
+  keyboard(true);
   try {
     const response = await fetch("/api/pair", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: $<HTMLInputElement>("pair-code").value }),
+      body: JSON.stringify({ code }),
     });
     const body = await response.json();
     if (!response.ok)
@@ -456,10 +448,10 @@ $("pair-form").addEventListener("submit", async (event) => {
           ? body.detail
           : "Enter the six-digit host code.",
       );
-    $<HTMLInputElement>("pair-code").blur();
     const status = await (await fetch("/api/status")).json();
     enterWorkspace(status.demo);
   } catch (error) {
+    keyboard(false);
     $("pair-error").textContent =
       error instanceof Error ? error.message : "Could not connect.";
   } finally {

@@ -1,6 +1,6 @@
 /** iOS composition stays local until committed, avoiding duplicated IME characters. */
 export function attachKeyboard(
-  element: HTMLTextAreaElement,
+  element: HTMLElement,
   text: (value: string) => void,
   key: (name: string) => void,
 ) {
@@ -8,10 +8,23 @@ export function attachKeyboard(
   let composing = false;
   let committed = "";
   const reset = () => {
-    element.value = sentinel;
-    element.setSelectionRange(1, 1);
+    element.textContent = sentinel;
+    if (document.activeElement === element) {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      range.collapse(false);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
   };
   element.addEventListener("focus", reset);
+  element.addEventListener("paste", (event) => {
+    event.preventDefault();
+    const value = event.clipboardData?.getData("text/plain");
+    if (value) text(value);
+    reset();
+  });
   element.addEventListener("compositionstart", () => {
     composing = true;
     committed = "";
@@ -45,7 +58,7 @@ export function attachKeyboard(
   });
   element.addEventListener("input", () => {
     if (composing) return;
-    const value = element.value.replaceAll(sentinel, "");
+    const value = (element.textContent || "").replaceAll(sentinel, "");
     if (committed && value === committed) {
       committed = "";
       reset();

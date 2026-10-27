@@ -105,13 +105,25 @@
         >
           <span></span>
         </div>
-        <div
-          id="trackpad"
-          class="trackpad"
-          aria-label="Mouse trackpad. Tap to click; two-finger tap to right-click; two fingers to scroll."
-          tabindex="0"
-        >
-          <span class="pad-mark" aria-hidden="true"></span>
+        <div class="pointing-surface">
+          <div
+            id="trackpad"
+            class="trackpad"
+            aria-label="Mouse trackpad. Tap to click; two-finger tap to right-click; two fingers to scroll."
+            tabindex="0"
+          >
+            <span class="pad-mark" aria-hidden="true"></span>
+          </div>
+          <div
+            id="scroll-wheel"
+            class="scroll-wheel"
+            hidden
+            tabindex="0"
+            role="group"
+            aria-label="Scroll wheel. Drag vertically or use arrow keys."
+          >
+            <span class="wheel-grip" aria-hidden="true"></span>
+          </div>
         </div>
         <div id="mouse-buttons" class="mouse-row" hidden>
           <button id="mouse-left" aria-label="Left mouse button. Hold to drag.">
@@ -198,15 +210,19 @@
           ><input id="show-mouse-buttons" type="checkbox" /> Show mouse
           buttons</label
         >
+        <label class="check-row"
+          ><input id="show-scroll-wheel" type="checkbox" /> Show scroll
+          wheel</label
+        >
         <label for="sensitivity"
-          >Pointer speed <output id="speed-value">1.5×</output></label
+          >Pointer speed <output id="speed-value">4.0×</output></label
         ><input
           id="sensitivity"
           type="range"
-          min="0.5"
-          max="4"
+          min="2.5"
+          max="7"
           step="0.1"
-          value="1.5"
+          value="4"
         />
         <label class="check-row"
           ><input id="natural-scroll" type="checkbox" checked /> Natural

@@ -11,7 +11,7 @@ export class TrackpadGesture {
   private dragging = false;
   private lastTap = -Infinity;
   private lastTapPoint = { x: 0, y: 0 };
-  speed = 1.5;
+  speed = 4;
   natural = true;
 
   constructor(private emit: (message: Input) => void) {}

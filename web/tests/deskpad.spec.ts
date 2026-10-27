@@ -79,10 +79,30 @@ test("keyboard-first controls keep the desktop full width as the visible viewpor
 test("optional mouse controls and a resizable trackpad remain available without permanent rows", async ({
   page,
 }) => {
+  await page.addInitScript(() => localStorage.setItem("deskpad.speed", "1.5"));
   await pair(page);
   await page.getByRole("button", { name: "Open settings" }).click();
+  await expect(page.getByLabel("Pointer speed")).toHaveValue("4");
+  await expect(page.getByLabel("Pointer speed")).toHaveAttribute("min", "2.5");
+  await expect(page.getByLabel("Pointer speed")).toHaveAttribute("max", "7");
+  await page.getByLabel("Pointer speed").fill("7");
   await page.getByLabel("Show mouse buttons").check();
+  await page.getByLabel("Show scroll wheel").check();
   await page.getByRole("button", { name: "Close settings" }).click();
+  const wheel = (await page.locator("#scroll-wheel").boundingBox())!;
+  const wheelBaseline = (await events(page)).length;
+  await page.mouse.move(wheel.x + wheel.width / 2, wheel.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(wheel.x + wheel.width / 2, wheel.y + 35);
+  await page.mouse.up();
+  await expect
+    .poll(async () =>
+      (await events(page))
+        .slice(wheelBaseline)
+        .some((event) => event[0] === "scroll" && event[2] !== 0),
+    )
+    .toBe(true);
+  await expect(page.locator("#typing")).toBeFocused();
   await expect(page.locator("#mouse-buttons")).toBeVisible();
   await expect(page.locator("#typing")).toBeFocused();
   const before = (await page.locator("#trackpad").boundingBox())!.height;
@@ -113,8 +133,10 @@ test("optional mouse controls and a resizable trackpad remain available without 
   ).toBe(false);
   await page.getByRole("button", { name: "Open settings" }).click(); // Opening a menu releases held inputs.
   await page.getByLabel("Show mouse buttons").uncheck();
+  await page.getByLabel("Show scroll wheel").uncheck();
   await page.getByRole("button", { name: "Close settings" }).click();
   await expect(page.locator("#mouse-buttons")).toBeHidden();
+  await expect(page.locator("#scroll-wheel")).toBeHidden();
 });
 
 test("two-finger right click retains keyboard focus; pinch scale survives keyboard-sized viewports", async ({
@@ -149,26 +171,37 @@ test("two-finger right click retains keyboard focus; pinch scale survives keyboa
     )
     .toBe(true);
   await expect(page.locator("#typing")).toBeFocused();
+  const original = (await page.locator("#picture").boundingBox())!;
   await session.send("Input.dispatchTouchEvent", {
     type: "touchStart",
     touchPoints: [
-      { x: 100, y: 150, id: 1 },
-      { x: 290, y: 150, id: 2 },
+      { x: 60, y: 200, id: 1 },
+      { x: 140, y: 200, id: 2 },
     ],
   });
   await session.send("Input.dispatchTouchEvent", {
     type: "touchMove",
     touchPoints: [
-      { x: 60, y: 150, id: 1 },
-      { x: 330, y: 150, id: 2 },
+      { x: 0, y: 200, id: 1 },
+      { x: 200, y: 200, id: 2 },
     ],
   });
   await session.send("Input.dispatchTouchEvent", {
     type: "touchEnd",
     touchPoints: [],
   });
-  const zoomed = (await page.locator("#picture").boundingBox())!.width;
-  expect(zoomed).toBeGreaterThan(450);
+  const enlarged = (await page.locator("#picture").boundingBox())!;
+  const zoomed = enlarged.width;
+  expect(zoomed).toBeGreaterThan(700);
+  // The same desktop point stays beneath the off-center pinch midpoint.
+  expect((100 - enlarged.x) / enlarged.width).toBeCloseTo(
+    (100 - original.x) / original.width,
+    2,
+  );
+  expect((200 - enlarged.y) / enlarged.height).toBeCloseTo(
+    (200 - original.y) / original.height,
+    2,
+  );
   await page.setViewportSize({ width: 390, height: 360 });
   await expect
     .poll(async () => (await page.locator("#picture").boundingBox())!.width)

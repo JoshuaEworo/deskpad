@@ -9,8 +9,8 @@ A free, local-first remote desktop for a Windows laptop and an iPhone. Hold your
 ## What is here
 
 - Edge-to-edge desktop fitted to width, with pinch zoom/pan preserved when the keyboard opens.
-- Slim, resizable trackpad with tap, two-finger right click, scrolling, long-press drag, and double-tap drag.
-- Optional mouse buttons and drag lock; tiny Deskpad branding and a menu float over the desktop.
+- Slim, resizable trackpad with tap, two-finger right click, scrolling, long-press drag, and double-tap drag. Pointer speed defaults to 4×, adjustable from 2.5× to 7×.
+- Optional one-thumb scroll wheel, mouse buttons, and drag lock; tiny Deskpad branding and a menu float over the desktop.
 - Native phone text input, desktop keys, one-shot modifiers, shortcuts, and a text-send box for pasting or dictation.
 - QR address and six-digit pairing; remembered phone credentials expire after 30 days.
 - One controller at a time; reconnect without replaying old input; held-input cleanup.
@@ -72,10 +72,10 @@ Host options:
 | Move pointer | One finger on trackpad |
 | Left click | Tap, or left mouse button |
 | Right click | Two-finger tap, or right mouse button |
-| Scroll | Two fingers; reverse direction in settings |
+| Scroll | Two fingers, or enable the side scroll wheel in the menu and drag it with one finger; reverse direction in settings |
 | Drag | Hold still briefly, then move; double-tap and drag also works |
 | Persistent drag | Menu → Drag lock; opening the menu releases held input |
-| Zoom desktop | Pinch the screen area |
+| Zoom desktop | Pinch around the part you want to enlarge; the pinch midpoint anchors the view, subject to image bounds |
 | Pan desktop | Drag the screen while zoomed |
 | Type | Keyboard stays focused while using the trackpad/desktop keys; bottom-right button shows/hides it |
 | Shortcut | Select Ctrl/Alt/Shift/Win, then a letter or desktop key; modifiers release afterward |

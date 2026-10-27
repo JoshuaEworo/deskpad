@@ -6,6 +6,13 @@ export class DesktopViewer {
   private y = 0;
   private contacts = new Map<number, { x: number; y: number }>();
   private observer: ResizeObserver;
+  private pinch?: {
+    distance: number;
+    zoom: number;
+    x: number;
+    y: number;
+    center: { x: number; y: number };
+  };
 
   constructor(
     private screen: HTMLElement,
@@ -21,22 +28,34 @@ export class DesktopViewer {
         x: event.clientX,
         y: event.clientY,
       });
+      this.beginPinch();
     });
     screen.addEventListener("pointermove", (event) => {
       const old = this.contacts.get(event.pointerId);
       if (!old) return;
-      const before = this.distance();
       const dx = event.clientX - old.x,
         dy = event.clientY - old.y;
       this.contacts.set(event.pointerId, {
         x: event.clientX,
         y: event.clientY,
       });
-      if (this.contacts.size === 2 && before > 0) {
-        this.zoom = Math.max(
+      if (this.contacts.size === 2 && this.pinch && this.pinch.distance > 0) {
+        const start = this.pinch;
+        const nextZoom = Math.max(
           1,
-          Math.min(5, (this.zoom * this.distance()) / before),
+          Math.min(5, (start.zoom * this.distance()) / start.distance),
         );
+        const newCenter = this.centroid();
+        const bounds = screen.getBoundingClientRect();
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        // Preserve the image point under the fingers, including two-finger panning.
+        // Coordinates are relative to the viewer center, matching the CSS transform.
+        const imageX = (start.center.x - centerX - start.x) / start.zoom;
+        const imageY = (start.center.y - centerY - start.y) / start.zoom;
+        this.x = newCenter.x - centerX - imageX * nextZoom;
+        this.y = newCenter.y - centerY - imageY * nextZoom;
+        this.zoom = nextZoom;
       } else if (this.contacts.size === 1) {
         // At fit width a short viewport can still crop the image vertically.
         this.x += dx;
@@ -45,9 +64,10 @@ export class DesktopViewer {
       this.layout();
     });
     for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) {
-      screen.addEventListener(name, (event) =>
-        this.contacts.delete((event as PointerEvent).pointerId),
-      );
+      screen.addEventListener(name, (event) => {
+        this.contacts.delete((event as PointerEvent).pointerId);
+        this.beginPinch();
+      });
     }
   }
 
@@ -60,6 +80,27 @@ export class DesktopViewer {
     this.zoom = 1;
     this.x = this.y = 0;
     this.layout();
+  }
+
+  private beginPinch() {
+    this.pinch =
+      this.contacts.size === 2
+        ? {
+            distance: this.distance(),
+            zoom: this.zoom,
+            x: this.x,
+            y: this.y,
+            center: this.centroid(),
+          }
+        : undefined;
+  }
+
+  private centroid() {
+    const points = [...this.contacts.values()];
+    return {
+      x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
+      y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
+    };
   }
 
   private distance() {

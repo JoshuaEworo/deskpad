@@ -207,11 +207,16 @@ button:active {
   border-radius: 2px;
   background: #657c6c;
 }
-.trackpad {
+.pointing-surface {
   height: var(--pad-height);
   max-height: calc(var(--app-height, 100dvh) * 0.3);
   min-height: 52px;
   flex-shrink: 0;
+  display: flex;
+}
+.trackpad {
+  flex: 1;
+  min-width: 0;
   position: relative;
   background-color: #1c2a21;
   background-image: radial-gradient(#809b8325 0.65px, transparent 0.65px);
@@ -219,6 +224,33 @@ button:active {
   border-bottom: 1px solid #34493b;
   touch-action: none;
   user-select: none;
+}
+.scroll-wheel {
+  width: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: #22372a;
+  border-left: 1px solid #415b49;
+  border-bottom: 1px solid #34493b;
+  touch-action: none;
+  user-select: none;
+  cursor: ns-resize;
+}
+.wheel-grip {
+  width: 12px;
+  height: 35px;
+  border-radius: 5px;
+  border: 1px solid #819e8966;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 3px,
+    #819e8955 3px 4px
+  );
+  pointer-events: none;
+}
+.scroll-wheel.engaged {
+  background: #355940;
 }
 .trackpad.engaged {
   background-color: #243b2c;
@@ -563,7 +595,7 @@ dialog textarea {
   white-space: nowrap;
 }
 @media (max-height: 420px) {
-  .trackpad {
+  .pointing-surface {
     max-height: 70px;
   }
   .controls {

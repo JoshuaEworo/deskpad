@@ -114,10 +114,12 @@ const gesture = new TrackpadGesture((message) => {
   connection.send(message);
 });
 
-const storedSpeed = Number(localStorage.getItem("deskpad.speed") || 1.5);
+const storedSpeed = Number(localStorage.getItem("deskpad.speed") || 4);
 gesture.speed = Number.isFinite(storedSpeed)
-  ? Math.max(0.5, Math.min(4, storedSpeed))
-  : 1.5;
+  ? storedSpeed < 2.5
+    ? 4
+    : Math.min(7, storedSpeed)
+  : 4;
 $<HTMLInputElement>("sensitivity").value = String(gesture.speed);
 $("speed-value").textContent = `${gesture.speed.toFixed(1)}×`;
 gesture.natural = localStorage.getItem("deskpad.natural") !== "false";
@@ -348,6 +350,54 @@ mousePreference.addEventListener("change", () => {
   $("mouse-buttons").hidden = !mousePreference.checked;
   localStorage.setItem("deskpad.mouseButtons", String(mousePreference.checked));
 });
+const wheelPreference = $<HTMLInputElement>("show-scroll-wheel");
+const wheel = $("scroll-wheel");
+wheelPreference.checked =
+  localStorage.getItem("deskpad.scrollWheel") === "true";
+wheel.hidden = !wheelPreference.checked;
+wheelPreference.addEventListener("change", () => {
+  wheelPointer = undefined;
+  wheel.classList.remove("engaged");
+  wheel.hidden = !wheelPreference.checked;
+  localStorage.setItem("deskpad.scrollWheel", String(wheelPreference.checked));
+});
+let wheelPointer: number | undefined,
+  wheelY = 0;
+wheel.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  if (wheelPointer !== undefined) return;
+  wheelPointer = event.pointerId;
+  wheelY = event.clientY;
+  wheel.setPointerCapture(event.pointerId);
+  wheel.classList.add("engaged");
+});
+wheel.addEventListener("pointermove", (event) => {
+  if (event.pointerId !== wheelPointer) return;
+  const delta = (-(event.clientY - wheelY) * (gesture.natural ? 1 : -1)) / 24;
+  wheelY = event.clientY;
+  connection.send({
+    type: "scroll",
+    dx: 0,
+    dy: Math.max(-100, Math.min(100, delta)),
+  });
+});
+for (const name of ["pointerup", "pointercancel", "lostpointercapture"])
+  wheel.addEventListener(name, (event) => {
+    if ((event as PointerEvent).pointerId === wheelPointer) {
+      wheelPointer = undefined;
+      wheel.classList.remove("engaged");
+    }
+  });
+wheel.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+    event.preventDefault();
+    connection.send({
+      type: "scroll",
+      dx: 0,
+      dy: event.key === "ArrowDown" ? 1 : -1,
+    });
+  }
+});
 $("reset-view").addEventListener("click", () => {
   viewer.reset();
   closeSettings();
@@ -370,6 +420,8 @@ window.visualViewport?.addEventListener("scroll", viewport);
 window.addEventListener("resize", viewport);
 viewport();
 function releaseInputs() {
+  wheelPointer = undefined;
+  wheel.classList.remove("engaged");
   gesture.cancel();
   clearVisualInputs();
   connection.release();

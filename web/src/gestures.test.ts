@@ -19,7 +19,7 @@ describe("trackpad gesture ownership", () => {
     pad.down(2, 0, 0, 1000);
     pad.move(2, 20, 30);
     pad.up(2, 1100);
-    expect(events).toEqual([{ type: "move", dx: 30, dy: 45 }]);
+    expect(events).toEqual([{ type: "move", dx: 80, dy: 120 }]);
   });
   it("releases a long-press drag on cancellation", () => {
     const { pad, events } = setup();

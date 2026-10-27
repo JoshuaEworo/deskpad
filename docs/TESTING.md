@@ -10,7 +10,7 @@ Automated checks are necessary but not sufficient for a remote input tool. A syn
 | Windows ABI / Unicode packet tests | 2 skipped on Linux; configured in Windows CI |
 | Trackpad gesture tests | 5 passed |
 | Production TypeScript/client build | Passed |
-| Chromium integration with mobile viewport | 3 passed: keyboard-first layout/text, optional controls/drag ownership, real multi-touch right click and zoom preservation |
+| Chromium integration with mobile viewport | 3 passed: keyboard-first layout/text, optional controls/drag ownership, side wheel, speed-setting migration, real multi-touch right click, focal zoom, and zoom preservation |
 | Desktop WebKit integration | Not run successfully locally: required browser system libraries unavailable; configured in CI |
 | Physical Windows + iPhone | Pending |
 

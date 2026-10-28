@@ -65,3 +65,11 @@ From alpha.4, Deskpad waits for the helper's `handoff-ready.txt` acknowledgement
 before exiting. A helper that fails to start leaves the app open, with its runner
 log retained in the update download directory. This cannot repair an already
 installed older updater; an installer can be run over the existing installation.
+
+
+A completed trusted `main` push Windows build triggers the publication workflow.
+It independently checks the build's event/repository/branch and the matching Checks
+run, checks out that exact SHA, and publishes only if its version is new. Artifacts
+come from that validated run. A newer signed channel blocks downgrade. Existing
+version assets remain immutable. Documentation-only commits do not create releases.
+Manual publication remains available for a selected successful build.

@@ -1,5 +1,6 @@
 """Synthetic host for browser tests only; never use this fixed PIN for real sharing."""
 
+import asyncio
 import json
 import secrets
 import tempfile
@@ -28,6 +29,21 @@ if __name__ == "__main__":
             remote_identity=Identity(Path(directory)),
         )
         app.state.pairing.pin = "123456"
+
+        @app.post("/test/reset")
+        async def reset_test_events():
+            await app.state.rtc.close()
+            for _ in range(100):
+                if app.state.lease["id"] is None:
+                    break
+                await asyncio.sleep(0.02)
+            app.state.native.events.clear()
+            app.state.rtc.settings.camera = False
+            app.state.rtc.settings.microphone = False
+            app.state.rtc.settings.speakers = False
+            return {"ok": True}
+
+        app.router.routes.insert(0, app.router.routes.pop())
 
         @app.get("/test/events")
         async def events():

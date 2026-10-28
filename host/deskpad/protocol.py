@@ -107,7 +107,7 @@ class Release(Message):
 
 class MediaState(Message):
     type: Literal["media"]
-    kind: Literal["camera", "microphone"]
+    kind: Literal["camera", "microphone", "speakers"]
     enabled: bool = Field(strict=True)
 
 

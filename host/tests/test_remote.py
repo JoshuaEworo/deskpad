@@ -106,3 +106,23 @@ def test_settings_only_accept_https_origins():
         with pytest.raises(ValueError):
             Settings(service_url=url)
     assert Settings(service_url="https://deskpad.example/").service_url == "https://deskpad.example"
+
+
+def test_speaker_capture_requires_phone_opt_in(monkeypatch):
+    np = pytest.importorskip("numpy")
+    from deskpad.media_devices import SystemAudio
+
+    source = SystemAudio(Settings(speakers=True))
+    # With laptop permission enabled, phone opt-out must still produce silence
+    # without touching the platform audio API.
+    import builtins
+
+    original = builtins.__import__
+
+    def checked_import(name, *args, **kwargs):
+        if name == "soundcard":
+            raise AssertionError("Audio captured without phone opt-in")
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", checked_import)
+    assert np.count_nonzero(source.read(False)) == 0

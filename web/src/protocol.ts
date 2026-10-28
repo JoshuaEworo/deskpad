@@ -1,5 +1,9 @@
 export type Input =
-  | { type: "media"; kind: "camera" | "microphone"; enabled: boolean }
+  | {
+      type: "media";
+      kind: "camera" | "microphone" | "speakers";
+      enabled: boolean;
+    }
   | { type: "move"; dx: number; dy: number }
   | { type: "scroll"; dx: number; dy: number }
   | {

@@ -47,6 +47,9 @@ export class Connection {
     this.transport?.stop();
     this.transport = undefined;
   }
+  listen(enabled: boolean) {
+    this.send({ type: "media", kind: "speakers", enabled });
+  }
   async media(
     kind: "camera" | "microphone",
     enabled: boolean,

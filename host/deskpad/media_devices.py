@@ -77,10 +77,10 @@ class SystemAudio:
         self.error = ""
         self.retry_at = 0
 
-    def read(self):
+    def read(self, enabled=True):
         import numpy as np
 
-        if not self.settings.speakers:
+        if not self.settings.speakers or not enabled:
             self.close()
             return np.zeros((960, 2), dtype=np.float32)
         if time.monotonic() < self.retry_at:

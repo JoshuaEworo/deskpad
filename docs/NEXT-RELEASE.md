@@ -30,7 +30,8 @@ close the peer and release all held keys/buttons. One controller across LAN and 
 ## Delivery gates
 
 - [x] Desktop lifecycle, pairing UI, device revocation, settings and installer source
-- [ ] Installer built and verified on Windows
+- [x] Windows CI builds the desktop executable and smoke-tests rendering/shutdown
+- [ ] Installer installation/uninstallation verified on a physical Windows machine
 - [x] Signed pairing, replay tests, explicit approval, revocation
 - [x] Worker routing, authentication, rate and size limits, TURN credentials
 - [x] Desktop RTC capture/control and reconnect browser tests

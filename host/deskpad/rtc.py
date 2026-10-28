@@ -32,7 +32,7 @@ class Peer:
         self.tasks = []
         self.tracks = []
         self.media_workers = []
-        self.media_on = {"video": False, "audio": False}
+        self.media_on = {"video": False, "audio": False, "speakers": False}
         self.media_queues = {}
         self.started = time.monotonic()
         self.pc.on("datachannel", self._channel)
@@ -104,7 +104,9 @@ class Peer:
                     self.send({"type": "error", "message": "Unsupported input message."})
                     continue
                 if isinstance(message, MediaState):
-                    kind = "video" if message.kind == "camera" else "audio"
+                    kind = {"camera": "video", "microphone": "audio", "speakers": "speakers"}[
+                        message.kind
+                    ]
                     self.media_on[kind] = message.enabled
                     queue = self.media_queues.get(kind)
                     if not message.enabled and queue is not None:
@@ -322,7 +324,9 @@ def system_audio_track(hub, peer):
             import numpy as np
 
             await asyncio.sleep(max(0, self.start + self.pts / 48000 - time.monotonic()))
-            samples = await asyncio.get_running_loop().run_in_executor(self.worker, self.audio.read)
+            samples = await asyncio.get_running_loop().run_in_executor(
+                self.worker, self.audio.read, peer.media_on["speakers"]
+            )
             if self.audio.error:
                 peer.send({"type": "media-status", "kind": "speakers", "error": self.audio.error})
                 self.audio.error = ""

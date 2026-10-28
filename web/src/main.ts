@@ -72,7 +72,7 @@ const connection = new Connection({
       $("workspace").hidden = false;
       $("app").classList.add("in-session");
     } else {
-      for (const id of ["phone-camera", "phone-microphone"])
+      for (const id of ["phone-camera", "phone-microphone", "phone-speaker"])
         $<HTMLInputElement>(id).checked = false;
     }
     $("status").textContent = labels[state];
@@ -646,6 +646,7 @@ $<HTMLInputElement>("phone-speaker").addEventListener(
   "change",
   async (event) => {
     const control = event.target as HTMLInputElement;
+    connection.listen(control.checked);
     if (!control.checked) {
       laptopAudio.pause();
       return;
@@ -654,6 +655,7 @@ $<HTMLInputElement>("phone-speaker").addEventListener(
       await laptopAudio.play();
     } catch {
       control.checked = false;
+      connection.listen(false);
       toast("Connect first and allow laptop audio in desktop Settings.");
     }
   },

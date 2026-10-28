@@ -76,3 +76,10 @@ Bearer credential. Phone authorization uses the `deskpad` subprotocol plus a
 `phone.<capability>` subprotocol, never URL query parameters. These credentials
 permit signaling, not PC control. TURN credentials are minted only for host-owned,
 verified rooms. The TURN API key never leaves the Worker.
+
+Media opt-in messages use `{type:"media",kind:"camera"|"microphone"|"speakers",enabled:boolean}`.
+The phone sends explicit opt-out before removing a camera/mic sender track. The
+host closes the corresponding sink even when no more media frames arrive. Incoming
+media queues are bounded (one video frame, two audio frames); stale frames are
+dropped rather than building an ever-growing delay. Laptop loopback capture starts
+only while both host permission and phone speaker opt-in are enabled.

@@ -1,5 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.request.post("/test/reset");
+});
+
 async function pair(page: Page) {
   await page.addInitScript(() =>
     localStorage.setItem("deskpad.legacyVideo", "true"),
@@ -489,6 +493,17 @@ test("opt-in phone camera and microphone send media and stop capture on disconne
   browserName,
 }) => {
   test.skip(browserName !== "chromium", "Fake browser media devices");
+  await page.addInitScript(() => {
+    const original = navigator.mediaDevices.getUserMedia.bind(
+      navigator.mediaDevices,
+    );
+    (window as any).__captured = [];
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      const stream = await original(constraints);
+      (window as any).__captured.push(...stream.getTracks());
+      return stream;
+    };
+  });
   await page.request.post("/test/media/allow");
   await page.goto("/");
   await page.getByLabel("Pairing code").fill("123456");
@@ -510,7 +525,23 @@ test("opt-in phone camera and microphone send media and stop capture on disconne
     )
     .toContain("audio");
   await expect(page.locator("#camera-preview")).toBeVisible();
+  await page.getByLabel("Use phone camera", { exact: true }).uncheck();
+  await expect(page.locator("#camera-preview")).toBeHidden();
+  await expect
+    .poll(
+      async () => await (await page.request.get("/test/media/events")).json(),
+    )
+    .toContain("closed:video");
   await page.locator("#disconnect").click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as any).__captured.every(
+          (track: MediaStreamTrack) => track.readyState === "ended",
+        ),
+      ),
+    )
+    .toBe(true);
   await expect(page.locator("#camera-preview")).toBeHidden();
   await expect
     .poll(

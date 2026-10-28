@@ -96,3 +96,11 @@ Before release, verify on Windows 10 and 11 with an actual iPhone:
    encode, network RTT, decode/jitter separately; input RTT alone is not video delay.
 8. Test virtual-device distribution and signing on a clean machine. Existing
    installed OBS/cable bridges are development adapters, not shipped Deskpad devices.
+
+
+The browser unit suite includes a cross-language QR round trip. Create `.venv`
+and install the host dependencies before `npm test --prefix web`: it invokes that
+Python environment to generate actual pairing QR rasters and decodes them with the
+same jsQR package used in the phone scanner, at 100/125/150/175/200% display scales.
+The signed remote browser test simulates host shutdown, phone refresh while offline,
+and host return with the same approved identity; it then tests End session and revoke.

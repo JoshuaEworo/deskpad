@@ -750,6 +750,8 @@ $("remote-connect").addEventListener("click", () => {
   connection.start();
 });
 if (connection.remote) {
+  $("scan-qr").hidden = false;
+  $("scan-qr").textContent = "Scan a new QR";
   $("pairing").hidden = false;
   $("pair-form").hidden = true;
   $("local-pair-description").hidden = true;

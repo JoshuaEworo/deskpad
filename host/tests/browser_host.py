@@ -29,6 +29,8 @@ if __name__ == "__main__":
             remote_identity=Identity(Path(directory)),
         )
         app.state.pairing.pin = "123456"
+        app.state.test_remote_sockets = set()
+        app.state.test_remote_offline = False
 
         @app.post("/test/reset")
         async def reset_test_events():
@@ -118,6 +120,25 @@ if __name__ == "__main__":
 
         app.router.routes.insert(0, app.router.routes.pop())
 
+        @app.post("/test/remote-offline")
+        async def remote_offline():
+            app.state.test_remote_offline = True
+            await app.state.rtc.close()
+            app.state.remote.sessions.clear()
+            app.state.remote.challenges.clear()
+            for socket in list(app.state.test_remote_sockets):
+                await socket.close(code=1012)
+            return {"ok": True}
+
+        app.router.routes.insert(0, app.router.routes.pop())
+
+        @app.post("/test/remote-online")
+        async def remote_online():
+            app.state.test_remote_offline = False
+            return {"ok": True}
+
+        app.router.routes.insert(0, app.router.routes.pop())
+
         @app.post("/test/revoke")
         async def revoke_remote():
             remote = app.state.remote
@@ -135,6 +156,10 @@ if __name__ == "__main__":
                 await ws.close(code=4403)
                 return
             await ws.accept(subprotocol="deskpad")
+            if app.state.test_remote_offline:
+                await ws.close(code=1013)
+                return
+            app.state.test_remote_sockets.add(ws)
             target = secrets.token_urlsafe(16)
 
             async def send(recipient, body):
@@ -152,6 +177,8 @@ if __name__ == "__main__":
                     await remote.handle(target, packet["message"])
             except WebSocketDisconnect:
                 pass
+            finally:
+                app.state.test_remote_sockets.discard(ws)
 
         app.router.routes.insert(0, app.router.routes.pop())
 

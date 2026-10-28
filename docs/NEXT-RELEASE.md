@@ -67,3 +67,17 @@ encoding without a verified hardware backend.
 - The alpha 2 → alpha 3 installed update passes Windows CI. No physical upgrade success is claimed.
 - No physical Windows capture/input, iPhone Safari media routing, hardware encoder,
   native device installer, signed binary, or real Zoom call is claimed tested.
+
+
+## Alpha.5 UX and connection validation
+
+- Windows build 40759507072 passed 40 host tests, packaged native icon checks,
+  and an actual alpha.4 → alpha.5 installed upgrade with restart and saved
+  identity/settings/pairings preserved. Publisher 40760083299 succeeded.
+- Matching Checks 40759507033 passed host, cloud, Chromium and WebKit checks.
+- QR generation round-trips through the actual phone decoder at five display scales.
+- Browser regression also covers a simulated offline host, phone refresh, host
+  return without re-pairing, End session across reload, and immediate revocation.
+- Public alpha.5 update metadata is signature-verified. Physical Windows taskbar
+  pin/cache behavior, iPhone optical scanning and real network transitions still
+  require device acceptance; these are not simulated browser/CI assertions.

@@ -1,5 +1,5 @@
 const installer =
-  "https://github.com/JoshuaEworo/deskpad/releases/download/v0.2.0-alpha.4/Deskpad-Setup-Windows-x64.exe";
+  "https://github.com/JoshuaEworo/deskpad/releases/download/v0.2.0-alpha.5/Deskpad-Setup-Windows-x64.exe";
 export function landing() {
   document.getElementById("app")!.innerHTML = `
     <div class="landing">

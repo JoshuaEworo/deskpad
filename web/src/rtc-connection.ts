@@ -1,3 +1,4 @@
+import { gatherIce, usableIceServers } from "./rtc-network";
 import type { Hooks } from "./connection";
 import type { Input } from "./protocol";
 import {
@@ -161,7 +162,7 @@ export class RtcConnection {
   private async makePeer(ice: RTCIceServer[], generation: number) {
     if (generation !== this.generation) return;
     const pc = new RTCPeerConnection({
-      iceServers: ice,
+      iceServers: usableIceServers(ice),
       bundlePolicy: "max-bundle",
     });
     this.pc = pc;
@@ -213,22 +214,7 @@ export class RtcConnection {
   private async offer() {
     const pc = this.pc!;
     await pc.setLocalDescription(await pc.createOffer());
-    if (pc.iceGatheringState !== "complete")
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => {
-          pc.removeEventListener("icegatheringstatechange", changed);
-          reject(new Error("Network discovery timed out"));
-        }, 15000);
-        const changed = () => {
-          if (pc.iceGatheringState === "complete") {
-            clearTimeout(timer);
-            pc.removeEventListener("icegatheringstatechange", changed);
-            resolve();
-          }
-        };
-        pc.addEventListener("icegatheringstatechange", changed);
-        changed();
-      });
+    await gatherIce(pc);
     return pc.localDescription!;
   }
   private async route() {
@@ -368,9 +354,15 @@ export class RtcConnection {
     cancelAnimationFrame(this.animation);
     this.animation = 0;
     this.moves = [0, 0];
-    this.channel?.close();
-    this.pc?.close();
-    this.socket?.close();
+    const channel = this.channel,
+      pc = this.pc,
+      socket = this.socket;
+    this.channel = undefined;
+    this.pc = undefined;
+    this.socket = undefined;
+    channel?.close();
+    pc?.close();
+    socket?.close();
     for (const track of this.tracks.values()) track.stop();
     this.tracks.clear();
     this.mediaGeneration.camera++;

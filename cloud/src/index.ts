@@ -1,3 +1,4 @@
+import { usableIceServers, type IceServer } from "./ice";
 // Deskpad signaling service. No desktop frames or input messages pass through this Worker.
 interface Env {
   ROOMS: DurableObjectNamespace;
@@ -277,11 +278,13 @@ export class Room implements DurableObject {
         },
       );
       if (!result.ok) return json({ error: "Relay unavailable" }, 503);
-      const body = (await result.json()) as { iceServers: unknown };
+      const body = (await result.json()) as {
+        iceServers: IceServer | IceServer[];
+      };
       return json({
-        iceServers: Array.isArray(body.iceServers)
-          ? body.iceServers
-          : [body.iceServers],
+        iceServers: usableIceServers(
+          Array.isArray(body.iceServers) ? body.iceServers : [body.iceServers],
+        ),
       });
     }
     if (

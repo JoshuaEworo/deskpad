@@ -8,6 +8,8 @@ components. Their licenses and copyright notices continue to apply.
   onedir). Do not convert it to a locked single-file distribution. Users may
   replace the Qt libraries. Qt source: https://code.qt.io/ and
   https://download.qt.io/official_releases/QtForPython/ .
+- jsQR 1.4.0: Apache-2.0; browser scanner license is included at
+  `/licenses/jsQR-APACHE-2.0.txt` and in desktop distribution notices.
 - Python: PSF license. https://www.python.org/downloads/source/
 - aiortc, aioice, PyAV, cryptography, FastAPI, Uvicorn, MSS, Pillow, qrcode,
   soundcard, sounddevice, pyvirtualcam and their dependencies: see installed

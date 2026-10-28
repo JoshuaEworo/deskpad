@@ -23,6 +23,8 @@ class Remote:
         self.task = None
         self.negotiating = set()
         self.jobs = set()
+        self.sessions = {}
+        self.invite_task = None
 
     def pairing_url(self):
         i = self.identity
@@ -61,9 +63,14 @@ class Remote:
         self.stopping = False
         self.new_invite()
         self.task = asyncio.create_task(self.run())
+        self.invite_task = asyncio.create_task(self.rotate_invites())
 
     async def stop(self):
         self.stopping = True
+        if self.invite_task:
+            self.invite_task.cancel()
+            await asyncio.gather(self.invite_task, return_exceptions=True)
+            self.invite_task = None
         if self.task:
             self.task.cancel()
             await asyncio.gather(self.task, return_exceptions=True)
@@ -130,6 +137,7 @@ class Remote:
                             continue
                         if packet.get("left"):
                             self.challenges.pop(packet["left"], None)
+                            self.sessions.pop(packet["left"], None)
                             self.pending = {
                                 k: v
                                 for k, v in self.pending.items()
@@ -149,6 +157,7 @@ class Remote:
             finally:
                 self.socket = None
                 self.challenges.clear()
+                self.sessions.clear()
                 self.pending.clear()
                 self.refresh()
             await asyncio.sleep(delay)
@@ -191,10 +200,20 @@ class Remote:
                 )
                 return
             if identifier not in self.identity.devices:
-                raise ValueError("Approve this phone on the laptop first")
+                await self.send(
+                    target,
+                    {
+                        "kind": "error",
+                        "nonce": nonce,
+                        "code": "access-removed",
+                        "message": "Access removed. Scan a new QR code on your laptop.",
+                    },
+                )
+                return
             if self.rtc.paused() or not self.settings.remote:
                 raise ValueError("Laptop connections are paused")
             if kind == "connect":
+                self.sessions[target] = {"id": identifier, "nonce": nonce}
                 if self.rtc.lease["id"] or self.negotiating:
                     raise ValueError("Laptop is already in use")
                 now = time.time()
@@ -264,6 +283,7 @@ class Remote:
 
     async def revoke(self, identifier):
         self.identity.revoke(identifier)
+        await self.notify_sessions("revoked", identifier)
         self.challenges = {k: v for k, v in self.challenges.items() if v["id"] != identifier}
         peer = self.rtc.peers.get("remote:" + identifier)
         if peer:
@@ -273,4 +293,29 @@ class Remote:
     def new_invite(self):
         self.identity.invite = secrets.token_urlsafe(32)
         self.identity.invite_until = time.time() + 600
-        self.service.update(remote_url=self.pairing_url())
+        self.service.update(remote_url=self.pairing_url(), invite_until=self.identity.invite_until)
+
+    async def notify_sessions(self, event, identifier=None):
+        for target, session in list(self.sessions.items()):
+            if identifier is None or session["id"] == identifier:
+                try:
+                    await self.send(
+                        target,
+                        {"kind": "session-ended", "nonce": session["nonce"], "reason": event},
+                    )
+                except Exception:
+                    # Revocation/closing must succeed even if signaling is offline.
+                    pass
+                self.sessions.pop(target, None)
+
+    async def rotate_invites(self):
+        while True:
+            await asyncio.sleep(1)
+            now = time.time()
+            if now >= self.identity.invite_until:
+                self.new_invite()
+            # Existing requests use their own expiry; QR rotation never cancels approval.
+            pending = {k: v for k, v in self.pending.items() if v["expires"] > now}
+            if len(pending) != len(self.pending):
+                self.pending = pending
+                self.refresh()

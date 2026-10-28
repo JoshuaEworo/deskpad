@@ -74,7 +74,7 @@ def test_remote_requires_approval_challenge_and_rejects_replay(tmp_path):
         remote.send = send
         remote.ice = ice
         await remote.handle("phone", envelope(phone, kind="connect"))
-        assert not calls and "Approve" in sent[-1]["message"]
+        assert not calls and sent[-1]["code"] == "access-removed"
         await remote.handle("phone", envelope(phone, kind="pair", invite="bad"))
         assert not service.snapshot()["pending"]
         await remote.handle("phone", envelope(phone, kind="pair", invite=host.invite, name="Phone"))
@@ -96,7 +96,7 @@ def test_remote_requires_approval_challenge_and_rejects_replay(tmp_path):
         assert len(calls) == 1
         await remote.revoke(key_id(phone.public))
         await remote.handle("phone", envelope(phone, kind="connect"))
-        assert "Approve" in sent[-1]["message"]
+        assert sent[-1]["code"] == "access-removed"
 
     asyncio.run(scenario())
 
@@ -136,3 +136,70 @@ def test_empty_saved_service_uses_bundled_origin_without_enabling_remote(tmp_pat
     assert not loaded.remote and loaded.name == "My PC"
     Settings(service_url="https://self-hosted.example", remote=True).save(path)
     assert Settings.load(path).service_url == "https://self-hosted.example"
+
+
+def test_revocation_notifies_every_live_transport_and_rejects_reconnect(tmp_path):
+    async def scenario():
+        host, phone = Identity(tmp_path / "host"), Identity(tmp_path / "phone")
+        identifier = key_id(phone.public)
+        host.approve(identifier, phone.public, "Phone")
+        closed = []
+
+        class Peer:
+            async def close(self):
+                closed.append(True)
+
+        class Hub:
+            lease = {"id": None}
+            peers = {"remote:" + identifier: Peer()}
+
+            def paused(self):
+                return False
+
+        remote = Remote(host, Settings(remote=True), Service(), Hub())
+        sent = []
+
+        async def send(target, body):
+            sent.append((target, body))
+
+        remote.send = send
+        remote.sessions = {
+            "tab1": {"id": identifier, "nonce": "fresh-1"},
+            "tab2": {"id": identifier, "nonce": "fresh-2"},
+        }
+        await remote.revoke(identifier)
+        assert closed and not host.devices
+        assert [body["nonce"] for _, body in sent] == ["fresh-1", "fresh-2"]
+        assert all(body["reason"] == "revoked" for _, body in sent)
+        await remote.handle("new-tab", envelope(phone, kind="connect"))
+        assert sent[-1][1]["code"] == "access-removed"
+        assert not remote.sessions
+
+    asyncio.run(scenario())
+
+
+def test_invite_rotation_keeps_pending_approval_valid(tmp_path, monkeypatch):
+    async def scenario():
+        host = Identity(tmp_path / "host")
+        service = Service()
+        remote = Remote(host, Settings(service_url="https://deskpad.example"), service, None)
+        remote.new_invite()
+        previous = host.invite
+        remote.pending["phone"] = {"expires": time.time() + 120}
+        host.invite_until = 0
+        calls = 0
+
+        async def tick(_):
+            nonlocal calls
+            calls += 1
+            if calls > 1:
+                raise asyncio.CancelledError
+
+        monkeypatch.setattr("deskpad.remote.asyncio.sleep", tick)
+        with pytest.raises(asyncio.CancelledError):
+            await remote.rotate_invites()
+        assert host.invite != previous
+        assert "phone" in remote.pending
+        assert service.snapshot()["invite_until"] > time.time()
+
+    asyncio.run(scenario())

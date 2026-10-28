@@ -59,3 +59,9 @@ installer. Code signing and signed virtual-device distribution remain separate w
 
 Key rotation requires a deliberate trust migration in an update signed by the old
 key. Do not replace the pinned key and expect older clients to trust it automatically.
+
+
+From alpha.4, Deskpad waits for the helper's `handoff-ready.txt` acknowledgement
+before exiting. A helper that fails to start leaves the app open, with its runner
+log retained in the update download directory. This cannot repair an already
+installed older updater; an installer can be run over the existing installation.

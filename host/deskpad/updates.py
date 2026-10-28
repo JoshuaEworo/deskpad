@@ -17,7 +17,7 @@ import httpx
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-VERSION = "0.2.0-alpha.3"
+VERSION = "0.2.0-alpha.4"
 MAX_INSTALLER = 300 * 1024 * 1024
 REPOSITORY = "JoshuaEworo/deskpad"
 FEED = f"https://github.com/{REPOSITORY}/releases/download/update-channel/update.json"
@@ -157,11 +157,13 @@ def launch_installer(installer, release):
     # Verify again immediately before handing off. PowerShell verifies again after shutdown.
     if hashlib.sha256(installer.read_bytes()).hexdigest() != release.sha256:
         raise ValueError("Update installer changed; download it again.")
+    installer.with_name("handoff-ready.txt").unlink(missing_ok=True)
     helper = installer.with_name("install.ps1")
     helper.write_text(
         """param([string]$Installer, [string]$Hash, [int]$ParentId, [string]$AppDir)
 $ErrorActionPreference = 'Stop'
 try {
+    [System.IO.File]::WriteAllText((Join-Path (Split-Path $Installer) 'handoff-ready.txt'), 'ready')
     Write-Output 'Waiting for Deskpad to exit'
     if (Get-Process -Id $ParentId -ErrorAction SilentlyContinue) {
         try {
@@ -201,7 +203,7 @@ try {
     # Windows children survive parent exit without DETACHED_PROCESS. Give the
     # console-hosted helper valid handles even when Deskpad itself is windowed.
     with installer.with_name("update-runner.log").open("ab") as output:
-        subprocess.Popen(
+        process = subprocess.Popen(
             [
                 str(powershell),
                 "-NoProfile",
@@ -227,3 +229,20 @@ try {
             stderr=subprocess.STDOUT,
             close_fds=True,
         )
+
+    # Keep the app open unless the helper has actually begun executing. A process
+    # handle alone does not prove PowerShell accepted the script or its arguments.
+    deadline = time.monotonic() + 5
+    ready = installer.with_name("handoff-ready.txt")
+    while time.monotonic() < deadline:
+        if ready.exists():
+            return
+        if process.poll() is not None:
+            break
+        time.sleep(0.05)
+    if process.poll() is None:
+        process.terminate()
+        process.wait(timeout=5)
+    raise ValueError(
+        "Update helper did not start. Your app is still open. Run the downloaded installer or check update-runner.log."
+    )

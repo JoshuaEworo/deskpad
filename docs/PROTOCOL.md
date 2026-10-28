@@ -83,3 +83,18 @@ host closes the corresponding sink even when no more media frames arrive. Incomi
 media queues are bounded (one video frame, two audio frames); stale frames are
 dropped rather than building an ever-growing delay. Laptop loopback capture starts
 only while both host permission and phone speaker opt-in are enabled.
+
+
+A signed `session-ended` host event uses the current `connect` request nonce and
+reason `revoked` or `ended`. It is processed immediately, even during ICE gathering.
+Revocation removes cached approval and exits controls; the host also rejects future
+requests from that key using a nonce-bound signed `error` with `code:access-removed`.
+Control transports can send `{type:"session-ended",reason}` before closing.
+End session retains pairing but disables automatic reconnect in the current phone
+tab (including reloads) until the user chooses Reconnect.
+
+Cloud service `host-online`/`host-offline` events are untrusted availability hints.
+They only prompt retries while disconnected: they cannot grant/revoke approval,
+change a pinned identity, or interrupt an established peer connection. Every retry
+still performs the signed handshake. Invites rotate after ten minutes independently
+of existing two-minute pending approvals. The desktop displays the remaining time.

@@ -184,7 +184,16 @@ def build_window(settings, service, directory, engine):
             self.setWindowTitle("Deskpad")
             self.resize(980, 740)
             self.setMinimumSize(800, 650)
-            icon = QIcon(str(Path(__file__).with_name("static") / "icon.svg"))
+            # Use a raster Windows icon for the native window too. SVG rendering
+            # plugins can be absent in a frozen build even with a correct EXE icon.
+            icon_path = Path(__file__).with_name("icon.ico")
+            icon = QIcon(
+                str(
+                    icon_path
+                    if icon_path.exists()
+                    else Path(__file__).with_name("static") / "icon.svg"
+                )
+            )
             self.setWindowIcon(icon)
             QApplication.instance().setWindowIcon(icon)
             self.tray = None
@@ -235,7 +244,7 @@ def build_window(settings, service, directory, engine):
                 menu = QMenu()
                 for text, callback in (
                     ("Open Deskpad", self.reveal),
-                    ("Disconnect phone", lambda: service.command("disconnect")),
+                    ("End phone session", lambda: service.command("disconnect")),
                     ("Pause / resume connections", self.pause),
                     ("Quit Deskpad", self.quit),
                 ):
@@ -272,7 +281,11 @@ def build_window(settings, service, directory, engine):
             layout = self.page()
             self.title = label("Starting Deskpad…", "title")
             self.status = label("Opening your desktop host", "status")
-            layout.addWidget(self.title)
+            heading = QHBoxLayout()
+            heading.addWidget(self.title, 1)
+            self.pause_button = button("Pause sharing", self.pause)
+            heading.addWidget(self.pause_button)
+            layout.addLayout(heading)
             layout.addWidget(self.status)
             frame, content = card()
             row = QHBoxLayout()
@@ -294,7 +307,11 @@ def build_window(settings, service, directory, engine):
             self.address = label("", "muted", True)
             self.address.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             content.addWidget(self.address)
-            content.addWidget(button("Refresh pairing QR", lambda: service.command("new-invite")))
+            qr_actions = QHBoxLayout()
+            self.qr_timer = label("", "muted")
+            qr_actions.addWidget(self.qr_timer, 1)
+            qr_actions.addWidget(button("↻ Refresh QR", lambda: service.command("new-invite")))
+            content.addLayout(qr_actions)
             row = QHBoxLayout()
             row.setContentsMargins(0, 6, 0, 0)
             row.addWidget(label("Access", "muted"))
@@ -316,11 +333,6 @@ def build_window(settings, service, directory, engine):
             layout.addWidget(self.pending_box)
             self.pending_box.hide()
             layout.addStretch()
-            row = QHBoxLayout()
-            row.addWidget(label("Runs quietly in your system tray.", "muted"))
-            self.pause_button = button("Pause connections", self.pause)
-            row.addWidget(self.pause_button)
-            layout.addLayout(row)
 
         def devices_page(self):
             layout = self.page()
@@ -652,9 +664,11 @@ def build_window(settings, service, directory, engine):
                     return
                 try:
                     updates.launch_installer(self.update_installer, self.update_release)
-                except Exception:
+                except Exception as error:
                     self.update_note.setText(
-                        "Could not start the update installer. Download it again."
+                        str(error)
+                        if isinstance(error, ValueError)
+                        else "Could not start the update installer. Your app is still open."
                     )
                     self.update_installer = None
                     self.install_button.setText("Download update")
@@ -795,10 +809,20 @@ def build_window(settings, service, directory, engine):
                 else settings.name
                 + (" · sharing your desktop" if connected else " · your laptop is online")
             )
-            self.pause_button.setText("Resume connections" if paused else "Pause connections")
+            self.pause_button.setText("Resume sharing" if paused else "Pause sharing")
             self.local.setChecked(not settings.remote)
             self.anywhere.setChecked(settings.remote)
             self.remote_status.setText(snapshot["remote_status"])
+            self.remote_status.setVisible(
+                settings.remote
+                and snapshot["remote_status"] not in ("Available anywhere", "Local only")
+            )
+            remaining = max(0, int(snapshot.get("invite_until", 0) - time.time()))
+            self.qr_timer.setText(
+                f"Refreshes in {remaining // 60:02d}:{remaining % 60:02d}"
+                if settings.remote and snapshot.get("remote_url")
+                else ""
+            )
             self.setup_button.setVisible(bool(snapshot.get("setup_url")))
             url = snapshot.get("remote_url", "") if settings.remote else snapshot["url"]
             if url != self.last_qr:
@@ -822,7 +846,7 @@ def build_window(settings, service, directory, engine):
                     self.qr.setText("Connecting…")
             self.address.setText(settings.service_url if settings.remote else snapshot["url"])
             self.instructions.setText(
-                "Approve the matching code on this laptop.\nQR expires after 10 minutes."
+                "Approve the matching code on this laptop."
                 if settings.remote
                 else "Enter this code on your phone:"
             )
@@ -979,13 +1003,24 @@ def main():
 
     singleton.newConnection.connect(reveal)
     window.show()
+    from .window_icon import set_native_icon
+
+    try:
+        set_native_icon(window)
+    except OSError:
+        logging.warning("Native window icon could not be loaded")
     engine.start()
     app.aboutToQuit.connect(engine.stop)
     if args.screenshot:
 
         def capture():
-            window.grab().save(str(args.screenshot))
-            window.quit()
+            from .window_icon import verify_native_icon
+
+            try:
+                verify_native_icon(window)
+                window.grab().save(str(args.screenshot))
+            finally:
+                window.quit()
 
         QTimer.singleShot(2500, capture)
     app.exec()

@@ -25,3 +25,7 @@ output.parent.mkdir(parents=True, exist_ok=True)
 Image.open(io.BytesIO(bytes(buffer.data()))).save(
     output, sizes=[(n, n) for n in (16, 24, 32, 48, 64, 128, 256)]
 )
+
+# Bundle the same multi-size raster in the Python package for Qt/WM_SETICON.
+import shutil
+shutil.copyfile(output, root / "host/deskpad/icon.ico")

@@ -16,6 +16,8 @@ export type Hooks = {
   localCamera?: (stream: MediaStream | null) => void;
   metadata?: (meta: Frame) => void;
   stream?: (stream: MediaStream, kind: string) => void;
+  progress?: (message: string) => void;
+  ended?: (reason: "revoked" | "ended") => void;
   pairing?: (code: string) => void;
   route?: (route: string) => void;
   state: (state: State) => void;
@@ -56,6 +58,11 @@ export class Connection {
     control.onmessage = (event) => {
       if (generation !== this.generation) return;
       const data = JSON.parse(event.data);
+      if (data.type === "session-ended" && ["ended", "revoked"].includes(data.reason)) {
+        this.stop();
+        this.hooks.ended?.(data.reason);
+        return;
+      }
       if (data.type === "hello") {
         if (data.protocol !== 1) {
           this.hooks.error("Host and phone versions differ. Reload Deskpad.");

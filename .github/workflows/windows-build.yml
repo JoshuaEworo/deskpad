@@ -39,7 +39,7 @@ jobs:
           DESKPAD_SERVICE_URL: ${{ vars.DESKPAD_SERVICE_URL }}
         run: python -c "import json,os,pathlib; from deskpad.settings import Settings; path=pathlib.Path('host/deskpad/deployment.json'); bundled=json.loads(path.read_text()); value=Settings(service_url=os.environ.get('DESKPAD_SERVICE_URL') or bundled.get('service_url','')); path.write_text(json.dumps({'service_url':value.service_url}))"
       - run: python scripts/build_icon.py
-      - run: python -m PyInstaller --noconfirm --windowed --icon build/deskpad.ico --name Deskpad --collect-submodules uvicorn --collect-submodules mss --collect-submodules websockets --collect-submodules aiortc --collect-submodules av --collect-submodules soundcard --collect-submodules sounddevice --collect-submodules pyvirtualcam --collect-submodules dxcam --add-data "host/deskpad/static:deskpad/static" --add-data "host/deskpad/deployment.json:deskpad" --add-data "host/deskpad/update-key.json:deskpad" scripts/desktop_entry.py
+      - run: python -m PyInstaller --noconfirm --windowed --icon build/deskpad.ico --name Deskpad --collect-submodules uvicorn --collect-submodules mss --collect-submodules websockets --collect-submodules aiortc --collect-submodules av --collect-submodules soundcard --collect-submodules sounddevice --collect-submodules pyvirtualcam --collect-submodules dxcam --add-data "host/deskpad/static:deskpad/static" --add-data "host/deskpad/icon.ico:deskpad" --add-data "host/deskpad/deployment.json:deskpad" --add-data "host/deskpad/update-key.json:deskpad" scripts/desktop_entry.py
       - name: Smoke test desktop startup and shutdown
         run: |
           & .\dist\Deskpad\Deskpad.exe --demo --screenshot "$env:RUNNER_TEMP\deskpad-desktop.png" | Out-Null

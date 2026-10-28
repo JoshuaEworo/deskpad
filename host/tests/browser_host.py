@@ -118,6 +118,15 @@ if __name__ == "__main__":
 
         app.router.routes.insert(0, app.router.routes.pop())
 
+        @app.post("/test/revoke")
+        async def revoke_remote():
+            remote = app.state.remote
+            for identifier in list(remote.identity.devices):
+                await remote.revoke(identifier)
+            return {"ok": True}
+
+        app.router.routes.insert(0, app.router.routes.pop())
+
         @app.websocket("/api/rooms/{room}/socket")
         async def remote_socket(ws: WebSocket, room: str):
             remote = app.state.remote

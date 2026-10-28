@@ -94,10 +94,10 @@ test("keyboard-first controls keep the desktop full width as the visible viewpor
   await expect(
     page.getByRole("button", { name: "ctrl", exact: true }),
   ).toHaveAttribute("aria-pressed", "false");
-  await page.getByRole("button", { name: "Disconnect", exact: true }).click();
+  await page.getByRole("button", { name: "End session", exact: true }).click();
   await expect(page.locator("#status")).toHaveText("Disconnected");
-  await page.getByRole("button", { name: "Open settings" }).click();
-  await page.getByRole("button", { name: "Reconnect", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Session ended" })).toBeVisible();
+  await page.getByRole("button", { name: "Reconnect to laptop", exact: true }).click();
   await expect(page.locator("#status")).toHaveText("Connected to laptop");
   await page.getByRole("button", { name: "Open settings" }).click();
   await page.getByRole("button", { name: "Forget this phone" }).click();
@@ -478,11 +478,12 @@ test("remote QR pins identity, requires matching laptop approval, then streams o
     )
     .toBe(false);
   await page.reload();
-  await expect(page.locator("#status")).toHaveText("Connected to laptop", {
-    timeout: 20000,
-  });
-  await page.locator("#settings-toggle").click();
-  await page.locator("#forget").click();
+  await expect(page.getByRole("heading", { name: "Session ended" })).toBeVisible();
+  await page.getByRole("button", { name: "Reconnect to laptop", exact: true }).click();
+  await expect(page.locator("#status")).toHaveText("Connected to laptop", { timeout: 20000 });
+  await page.request.post("/test/revoke");
+  await expect(page.getByRole("heading", { name: "Access removed" })).toBeVisible();
+  await expect(page.locator("#workspace")).toBeHidden();
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("deskpad.remote")))
     .toBe(null);

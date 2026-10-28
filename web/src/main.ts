@@ -57,8 +57,47 @@ function clearVisualInputs() {
   $("drag-lock").setAttribute("aria-pressed", "false");
 }
 
+function showEnded(reason: "revoked" | "ended") {
+  if (reason === "ended")
+    sessionStorage.setItem("deskpad.sessionEnded", "true");
+  else sessionStorage.removeItem("deskpad.sessionEnded");
+  desiredConnection = false;
+  desktopVideo.srcObject = null;
+  laptopAudio.srcObject = null;
+  desktop.removeAttribute("src");
+  frame = undefined;
+  $("screen-empty").hidden = false;
+  $("cursor").hidden = true;
+  $("workspace").hidden = true;
+  $("pairing").hidden = false;
+  $("app").classList.remove("in-session");
+  closeSettings(false);
+  keyboard(false);
+  $("remote-pair").hidden = true;
+  $("session-resume").hidden = reason !== "ended";
+  $("pair-form").hidden = reason === "ended" || !!connection.remote;
+  $("pair-title").textContent =
+    reason === "revoked" ? "Access removed" : "Session ended";
+  $("local-pair-description").hidden = false;
+  $("local-pair-description").textContent =
+    reason === "ended"
+      ? "Your phone is still paired. Reconnect when you’re ready."
+      : connection.remote
+        ? "Scan a new QR code on your laptop to pair again."
+        : "Enter the new pairing code shown on your laptop.";
+  $("scan-qr").hidden = reason !== "revoked" || !connection.remote;
+  $("pair-note").textContent = "Your laptop controls who can connect.";
+}
+
 const connection = new Connection({
+  progress(message) {
+    $("remote-pair-status").textContent = message;
+    $("screen-empty").textContent = message;
+    $("connection-detail").textContent = message;
+  },
+  ended: showEnded,
   state(state) {
+    $<HTMLButtonElement>("remote-connect").disabled = state === "connecting";
     const labels = {
       connecting: "Connecting…",
       connected: "Connected to laptop",
@@ -72,6 +111,10 @@ const connection = new Connection({
       $("workspace").hidden = false;
       $("app").classList.add("in-session");
     } else {
+      $("screen-empty").hidden = false;
+      desktopVideo.srcObject = null;
+      laptopAudio.srcObject = null;
+      $("cursor").hidden = true;
       for (const id of ["phone-camera", "phone-microphone", "phone-speaker"])
         $<HTMLInputElement>(id).checked = false;
     }
@@ -199,7 +242,11 @@ const connection = new Connection({
     $("metrics").textContent =
       `${Math.round(ms)} MS · ${route.toUpperCase()} · INPUT RTT`;
   },
-  error: toast,
+  error(message) {
+    toast(message);
+    $("remote-pair-status").textContent = message;
+    $("screen-empty").textContent = message;
+  },
 });
 const gesture = new TrackpadGesture((message) => {
   // Drag lock owns the held button until explicitly released.
@@ -573,6 +620,7 @@ $("disconnect").addEventListener("click", () => {
   connection.stop();
   keyboard(false);
   closeSettings(false);
+  showEnded("ended");
 });
 $("reconnect").addEventListener("click", () => {
   desiredConnection = true;
@@ -593,6 +641,11 @@ $("forget").addEventListener("click", async () => {
     return;
   }
   $("settings").hidden = true;
+  $("pair-form").hidden = false;
+  $("session-resume").hidden = true;
+  $("pair-title").textContent = "Pair this phone";
+  $("local-pair-description").textContent =
+    "Enter the six-digit code shown on your laptop.";
   $("workspace").hidden = true;
   $("pairing").hidden = false;
   $("app").classList.remove("in-session");
@@ -600,6 +653,7 @@ $("forget").addEventListener("click", async () => {
 });
 
 function enterWorkspace(demo: boolean) {
+  sessionStorage.removeItem("deskpad.sessionEnded");
   $("pairing").hidden = true;
   $("workspace").hidden = false;
   $("app").classList.add("in-session");
@@ -702,22 +756,40 @@ if (connection.remote) {
   $("remote-pair").hidden = false;
   $("pair-title").textContent = connection.remote.name || "Your laptop";
   $("pair-note").textContent = "Approve on your laptop · No account needed";
-  if (connection.remote.approved) enterWorkspace(false);
+  if (connection.remote.approved) {
+    $("remote-connect").textContent = "Reconnect to laptop";
+    if (sessionStorage.getItem("deskpad.sessionEnded")) showEnded("ended");
+    else enterWorkspace(false);
+  }
 } else
   void fetch("/api/status")
     .then((r) => r.json())
     .then((status) => {
       if (status.remoteService) {
+        $("scan-qr").hidden = false;
         $("pair-form").hidden = true;
         $("local-pair-description").textContent =
           "Open Deskpad on your laptop and scan its QR code to pair this phone.";
         $("pair-note").textContent = "Your laptop. Wherever you are.";
       }
-      if (status.paired) enterWorkspace(status.demo);
-      else $("pairing").hidden = false;
+      if (status.paired) {
+        if (sessionStorage.getItem("deskpad.sessionEnded")) showEnded("ended");
+        else enterWorkspace(status.demo);
+      } else $("pairing").hidden = false;
     })
     .catch(() => {
       $("pairing").hidden = false;
       $("pair-error").textContent =
         "Cannot reach the host. Keep Deskpad running on your laptop, then reload.";
     });
+
+$("scan-qr").addEventListener("click", () => {
+  void import("./scanner")
+    .then(({ scanQR }) => scanQR())
+    .catch(() => {
+      $("pair-error").textContent =
+        "Could not load scanner. Try your phone's Camera app.";
+    });
+});
+
+$("session-resume").addEventListener("click", () => enterWorkspace(false));

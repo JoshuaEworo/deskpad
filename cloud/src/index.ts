@@ -307,6 +307,11 @@ export class Room implements DurableObject {
       if (isHost)
         for (const socket of this.state.getWebSockets("host"))
           socket.close(1012, "Host reconnected");
+      if (isHost)
+        // Wake phones whose request was sent while the laptop was offline.
+        // A retry still requires the complete signed host handshake.
+        for (const phone of this.state.getWebSockets("phone"))
+          phone.send(JSON.stringify({ event: "host-online" }));
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
       const role = isHost ? "host" : "phone";
@@ -373,6 +378,16 @@ export class Room implements DurableObject {
     if (a.role === "phone")
       for (const host of this.state.getWebSockets("host"))
         host.send(JSON.stringify({ left: a.id }));
+    if (
+      a.role === "host" &&
+      !this.state
+        .getWebSockets("host")
+        .some(
+          (other) => other !== socket && other.readyState === WebSocket.OPEN,
+        )
+    )
+      for (const phone of this.state.getWebSockets("phone"))
+        phone.send(JSON.stringify({ event: "host-offline" }));
     socket.close(code === 1006 ? 1000 : code);
   }
   webSocketError(socket: WebSocket) {

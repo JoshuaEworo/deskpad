@@ -206,3 +206,40 @@ it("requires human enrollment before a public room accepts phones or mints ICE c
     ).status,
   ).toBe(503);
 });
+
+it("notifies waiting phones when the host returns and leaves", async () => {
+  await mf.setOptions(configuration);
+  const destination = `http://localhost/api/rooms/${"r".repeat(43)}`;
+  await mf.dispatchFetch(destination, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${owner}` },
+    body: JSON.stringify({ gate }),
+  });
+  const response = await mf.dispatchFetch(destination + "/socket", {
+    headers: {
+      Upgrade: "websocket",
+      "Sec-WebSocket-Protocol": `deskpad, phone.${gate}`,
+    },
+  });
+  const phone = response.webSocket!;
+  phone.accept();
+  const next = () =>
+    new Promise<any>((resolve) =>
+      phone.addEventListener(
+        "message",
+        (event) => resolve(JSON.parse(String(event.data))),
+        { once: true },
+      ),
+    );
+  const online = next();
+  const hostResponse = await mf.dispatchFetch(destination + "/socket", {
+    headers: { Upgrade: "websocket", Authorization: `Bearer ${owner}` },
+  });
+  const host = hostResponse.webSocket!;
+  host.accept();
+  expect(await online).toEqual({ event: "host-online" });
+  const offline = next();
+  host.close(1000);
+  expect(await offline).toEqual({ event: "host-offline" });
+  phone.close(1000);
+});

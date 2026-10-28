@@ -751,3 +751,124 @@ dialog textarea {
   border-radius: 8px;
   background: #090e0b;
 }
+
+/* Public entry and phone scanner share the quiet Deskpad palette. */
+.landing {
+  overflow: auto;
+  padding: 28px max(24px, calc((100vw - 1080px) / 2));
+  height: 100%;
+}
+.landing header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.landing a {
+  color: inherit;
+  text-decoration: none;
+}
+.landing .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.landing header > a:last-child,
+.landing footer {
+  color: var(--muted);
+  font-size: 14px;
+}
+.landing-hero {
+  padding: clamp(56px, 10vh, 112px) 0 60px;
+  max-width: 780px;
+}
+.landing h1 {
+  font-size: clamp(46px, 7vw, 84px);
+  letter-spacing: -0.055em;
+  line-height: 1.03;
+  margin: 22px 0;
+}
+.landing-hero > p {
+  max-width: 480px;
+  color: var(--muted);
+  font-size: 19px;
+  line-height: 1.65;
+}
+.landing-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 30px 0 16px;
+}
+.landing-actions a {
+  padding: 15px 22px;
+  border-radius: 12px;
+  display: inline-flex;
+  gap: 24px;
+  align-items: center;
+}
+.landing-actions .primary {
+  background: var(--mint);
+  color: #101612;
+}
+.landing-actions .secondary {
+  border: 1px solid #3b4b40;
+}
+.landing-hero > .landing-meta {
+  font-size: 12px;
+  margin: 8px 0;
+}
+.landing-steps {
+  border-top: 1px solid #2c3b31;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 36px;
+  padding: 30px 0;
+}
+.landing-steps span {
+  color: var(--mint);
+  font-size: 12px;
+}
+.landing-steps h2 {
+  font-size: 18px;
+  margin-top: 16px;
+}
+.landing-steps p,
+.landing footer {
+  line-height: 1.7;
+  color: var(--muted);
+}
+.landing footer {
+  padding: 20px 0 40px;
+}
+.qr-scanner {
+  background: #162019;
+  color: #e5ece7;
+  border: 1px solid #3b4b40;
+  border-radius: 20px;
+  width: min(440px, 92vw);
+  max-height: 90dvh;
+  overflow: auto;
+}
+.qr-scanner::backdrop {
+  background: #000b;
+}
+.qr-scanner video {
+  width: 100%;
+  max-height: 45dvh;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #000;
+}
+#remote-pair-status {
+  min-height: 3em;
+}
+#scan-qr {
+  margin-bottom: 20px;
+}
+@media (max-width: 600px) {
+  .landing-steps {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}

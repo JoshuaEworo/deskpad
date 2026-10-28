@@ -14,7 +14,13 @@
     />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <title>Deskpad</title>
+    <meta
+      name="description"
+      content="Control your Windows laptop from your phone. Free, open source, and within reach with Deskpad."
+    />
+    <meta property="og:title" content="Deskpad — Your laptop. From your phone." />
+    <meta property="og:description" content="Free, open source remote desktop for your phone. Download Deskpad for Windows and pair in a few steps." />
+    <title>Deskpad — Your computer, within reach</title>
   </head>
   <body>
     <main id="app">
@@ -29,6 +35,10 @@
         <p id="local-pair-description">
           Enter the six-digit code shown on your laptop to connect this phone.
         </p>
+        <button id="scan-qr" class="primary" hidden>Scan laptop QR</button>
+        <button id="session-resume" class="primary" hidden>
+          Reconnect to laptop
+        </button>
         <form id="pair-form">
           <label for="pair-code">Pairing code</label>
           <input
@@ -346,7 +356,7 @@
           Tap to click. Two-finger tap to right-click. Two fingers to scroll.
           Hold, then move to drag. Pull the divider up for more trackpad room.
         </p>
-        <button id="disconnect">Disconnect</button
+        <button id="disconnect">End session</button
         ><button id="forget">Forget this phone</button>
       </aside>
       <dialog id="text-dialog">

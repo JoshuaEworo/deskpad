@@ -1,13 +1,17 @@
-Deskpad 0.2.0-alpha.3
+Deskpad 0.2.0-alpha.4
 
-- Clarifies Launch Deskpad on start with Windows sign-in help.
-- Gives camera, microphone and laptop audio separate setup and live-use statuses.
-- Adds step-by-step setup instructions and official download links.
-- Checks supported Windows media devices without capturing media.
-- Excludes physical speakers from phone microphone routing, including old settings.
-- Explains unavailable media controls on the phone.
-- Initializes Windows audio capture on its own worker thread.
+- Adds a public landing page with a Windows download and phone connection entry.
+- Adds QR scanning inside the phone site/PWA, with camera capture stopped on exit.
+- Removes revoked phone access immediately and returns the phone to pairing.
+- Makes End session explicit, retaining pairing and waiting for intentional reconnect.
+- Recovers signaling after the desktop goes offline and comes back.
+- Shows pairing and connection progress instead of a silent wait.
+- Refreshes expired pairing QRs automatically, with a subtle countdown.
+- Uses discovered ICE routes after four seconds when unused transports stall.
+- Moves Pause sharing alongside status and removes repetitive desktop text.
+- Bundles the raster Deskpad icon and explicitly assigns native Windows taskbar icons.
+- Keeps the app open unless the update helper confirms it has started.
 
-Camera and microphone currently use installed OBS/Unity virtual camera and
-VB-CABLE adapters. Bundled Deskpad virtual devices are not included.
-Physical Windows/iPhone/Zoom acceptance remains in progress.
+Camera and microphone still require supported installed virtual devices.
+Windows native icon/build checks and upgrade acceptance run in CI; pinned shortcut
+caches and physical iPhone/cellular/Zoom behavior require device acceptance.

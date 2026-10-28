@@ -66,7 +66,19 @@ def create_app(
         remote = Remote(remote_identity, settings, service, rtc)
         remote.refresh()
 
-    async def disconnect():
+    async def disconnect(reason=None):
+        if reason:
+            for peer in list(rtc.peers.values()):
+                peer.send({"type": "session-ended", "reason": reason})
+            await asyncio.gather(
+                *(
+                    ws.send_json({"type": "session-ended", "reason": reason})
+                    for ws in list(sockets)
+                ),
+                return_exceptions=True,
+            )
+            # Let the reliable control channel flush before closing its transport.
+            await asyncio.sleep(0.1)
         await rtc.close()
         await asyncio.gather(*(ws.close(code=1000) for ws in list(sockets)), return_exceptions=True)
 
@@ -76,7 +88,9 @@ def create_app(
             if value:
                 await disconnect()
         elif action == "disconnect":
-            await disconnect()
+            if remote:
+                await remote.notify_sessions("ended")
+            await disconnect("ended")
         elif action == "approve" and remote:
             await remote.approve(value)
         elif action == "reject" and remote:
@@ -87,7 +101,7 @@ def create_app(
         elif action == "revoke-local":
             pairing.devices.pop(value, None)
             pairing._save()
-            await disconnect()
+            await disconnect("revoked")
         elif action == "new-invite":
             if remote and settings.remote:
                 remote.new_invite()

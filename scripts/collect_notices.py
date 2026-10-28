@@ -19,3 +19,6 @@ for distribution in importlib.metadata.distributions():
 python_license = Path(sys.base_prefix) / "LICENSE.txt"
 if python_license.exists():
     shutil.copy2(python_license, output / "Python-LICENSE.txt")
+
+# Preserve the scanner's browser-bundled dependency license too.
+shutil.copytree("web/public/licenses", output / "web", dirs_exist_ok=True)

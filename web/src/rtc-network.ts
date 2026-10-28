@@ -15,6 +15,7 @@ export function gatherIce(
   return new Promise((resolve, reject) => {
     const finish = (error?: Error) => {
       clearTimeout(timer);
+      clearTimeout(partial);
       pc.removeEventListener("icegatheringstatechange", changed);
       pc.removeEventListener("signalingstatechange", changed);
       if (error) reject(error);
@@ -25,6 +26,14 @@ export function gatherIce(
         finish(new Error("Connection cancelled"));
       else if (pc.iceGatheringState === "complete") finish();
     };
+    // Once viable candidates exist, do not spend the full watchdog waiting on
+    // an unused TURN transport. Keep the full deadline for slow discovery.
+    const partial = setTimeout(
+      () => {
+        if (/^a=candidate:/m.test(pc.localDescription?.sdp || "")) finish();
+      },
+      Math.min(4000, timeout),
+    );
     const timer = setTimeout(() => {
       // Browsers update localDescription as candidates arrive. Send the routes
       // already discovered instead of discarding a viable offer because another

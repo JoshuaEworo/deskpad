@@ -15,3 +15,5 @@ playwright-report/
 .wrangler/
 .dev.vars
 .env*
+
+host/deskpad/icon.ico

@@ -7,6 +7,7 @@ import {
   sign,
   verify,
   saveRemote,
+  forgetRemote,
   pairingCode,
   type RemoteConfig,
 } from "./remote-identity";
@@ -20,6 +21,7 @@ export class RtcConnection {
   private retry?: ReturnType<typeof setTimeout>;
   private timeout?: ReturnType<typeof setTimeout>;
   private alive = false;
+  private sessionNonce?: string;
   private generation = 0;
   private pending = new Map<string, string>();
   private camera?: RTCRtpSender;
@@ -39,6 +41,7 @@ export class RtcConnection {
     this.alive = true;
     const generation = ++this.generation;
     this.hooks.state("connecting");
+    this.hooks.progress?.("Reaching your laptop…");
     this.timeout = setTimeout(() => {
       if (this.alive && generation === this.generation) {
         this.hooks.error(
@@ -61,6 +64,15 @@ export class RtcConnection {
         body: JSON.stringify({ sdp: offer.sdp }),
       });
       const result = await response.json();
+      if (generation !== this.generation) return;
+      if (response.status === 403) {
+        const status = await (await fetch("/api/status")).json();
+        if (generation !== this.generation) return;
+        if (!status.paired) {
+          this.end("revoked");
+          return;
+        }
+      }
       if (!response.ok)
         throw new Error(
           typeof result.detail === "string"
@@ -91,14 +103,53 @@ export class RtcConnection {
       ).catch((error) => this.error(error, generation));
     };
     socket.onmessage = (event) => {
+      let packet;
+      try {
+        packet = JSON.parse(event.data);
+      } catch {
+        this.error(new Error("Invalid signaling response"), generation);
+        return;
+      }
+      // Service availability is only a retry hint. It never grants access,
+      // removes a pairing, or interrupts a working direct peer connection.
+      if (["host-online", "host-offline"].includes(packet.event)) {
+        if (
+          generation === this.generation &&
+          this.alive &&
+          this.pc?.connectionState !== "connected"
+        )
+          this.failed();
+        return;
+      }
+      // Start verification immediately. Revocation must not sit behind ICE
+      // gathering, which can take seconds on a restricted network.
+      const verified = verify(packet, this.remote!.host);
+      void verified
+        .then((result) => {
+          if (
+            generation === this.generation &&
+            result.kind === "session-ended" &&
+            result.nonce === this.sessionNonce &&
+            ["revoked", "ended"].includes(result.reason)
+          )
+            this.end(result.reason);
+        })
+        .catch(() => {});
       this.processing = this.processing
         .then(async () => {
           if (generation !== this.generation) return;
-          const result = await verify(
-            JSON.parse(event.data),
-            this.remote!.host,
-          );
+          const result = await verified;
           if (generation !== this.generation) return;
+          // Unsolicited events are still signed by the pinned host and bound to
+          // this connection's fresh nonce, never accepted from another session.
+          if (
+            result.kind === "session-ended" &&
+            result.nonce === this.sessionNonce &&
+            ["revoked", "ended"].includes(result.reason)
+          ) {
+            this.end(result.reason);
+            return;
+          }
           const expected = this.pending.get(result.nonce);
           if (!expected)
             throw new Error("Unexpected or replayed laptop response");
@@ -110,19 +161,30 @@ export class RtcConnection {
             const code = await pairingCode(this.remote!.host, publicKey);
             if (code !== result.code)
               throw new Error("Pairing verification failed");
+            this.hooks.progress?.("Waiting for approval on your laptop…");
             this.hooks.pairing?.(code);
             clearTimeout(this.timeout);
             this.timeout = setTimeout(() => this.failed(), 120000);
             return;
           }
           this.pending.delete(result.nonce);
-          if (result.kind === "error") throw new Error(result.message);
+          if (result.kind === "error") {
+            if (result.code === "access-removed") {
+              this.end("revoked");
+              return;
+            }
+            throw new Error(result.message);
+          }
           if (result.kind === "approved" && expected === "pair") {
             this.remote!.approved = true;
             delete this.remote!.invite;
             saveRemote(this.remote!);
+            this.hooks.progress?.("Approved. Finding a connection…");
+            clearTimeout(this.timeout);
+            this.timeout = setTimeout(() => this.failed(), 45000);
             await this.request("connect", {});
           } else if (result.kind === "config" && expected === "connect") {
+            this.hooks.progress?.("Finding the best network route…");
             await this.makePeer(result.ice, generation);
             const offer = await this.offer();
             await this.request("offer", {
@@ -130,6 +192,7 @@ export class RtcConnection {
               sdp: offer.sdp,
             });
           } else if (result.kind === "answer" && expected === "offer") {
+            this.hooks.progress?.("Starting your desktop stream…");
             await this.pc!.setRemoteDescription({
               type: "answer",
               sdp: result.sdp,
@@ -149,6 +212,9 @@ export class RtcConnection {
   }
   private async request(kind: string, body: Record<string, unknown>) {
     const id = nonce();
+    if (kind === "connect") this.sessionNonce = id;
+    if (kind === "pair")
+      this.hooks.progress?.("Request sent. Waiting for your laptop…");
     this.pending.set(id, kind);
     const envelope = await sign(this.keys!, {
       kind,
@@ -187,6 +253,13 @@ export class RtcConnection {
     channel.onmessage = (event) => {
       if (generation !== this.generation) return;
       const result = JSON.parse(event.data);
+      if (
+        result.type === "session-ended" &&
+        ["ended", "revoked"].includes(result.reason)
+      ) {
+        this.end(result.reason);
+        return;
+      }
       if (result.type === "hello") this.hooks.mediaAllowed?.(result.media);
       else if (result.type === "frame") this.hooks.metadata?.(result);
       else if (result.type === "cursor") this.hooks.cursor(result.position);
@@ -335,13 +408,28 @@ export class RtcConnection {
     this.hooks.error(
       error instanceof Error ? error.message : "Connection failed",
     );
+    this.failed();
+  }
+  private end(reason: "revoked" | "ended") {
     this.stop();
-    this.hooks.state("disconnected");
+    if (reason === "revoked") {
+      forgetRemote();
+      if (this.remote) {
+        this.remote.approved = false;
+        delete this.remote.invite;
+      }
+    }
+    this.hooks.ended?.(reason);
   }
   private failed() {
     const reconnect = this.alive && (!this.remote || this.remote.approved);
     this.stop();
     this.hooks.state("disconnected");
+    this.hooks.progress?.(
+      reconnect
+        ? "Laptop unavailable. Retrying…"
+        : "Connection ended. Try again when your laptop is ready.",
+    );
     if (reconnect) this.retry = setTimeout(() => this.start(), 2500);
   }
   stop() {

@@ -48,7 +48,7 @@
     }
   ],
   "vars": {
-    "TURN_ENABLED": "false",
+    "TURN_ENABLED": "true",
     "ENROLLMENT_REQUIRED": "true",
     "TURN_DAILY_CREDENTIALS": "48"
   },

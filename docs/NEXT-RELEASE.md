@@ -39,6 +39,8 @@ close the peer and release all held keys/buttons. One controller across LAN and 
 - [ ] Bundled Deskpad Camera/Microphone devices without external device setup
 - [ ] Hosted staging deployment with real Cloudflare account
 - [ ] Native Windows, iPhone Safari, cellular and forced-relay acceptance
+- [x] Signed update metadata verification, bounded downloads and installer handoff source
+- [ ] Update signing key, public channel and physical Windows upgrade acceptance
 - [ ] Signed installer / signed virtual device distribution
 
 Media Foundation camera and audio-driver integration require native Windows testing.

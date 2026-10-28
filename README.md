@@ -164,3 +164,5 @@ See [architecture](docs/ARCHITECTURE.md), [protocol](docs/PROTOCOL.md),
 
 Deskpad source is MIT licensed. Binary distributions include independently licensed
 components; read [third-party notices](THIRD-PARTY-NOTICES.md) before redistributing.
+
+Desktop update architecture and maintainer activation: [docs/UPDATES.md](docs/UPDATES.md). The update channel is not live until its signing key and public releases are configured.

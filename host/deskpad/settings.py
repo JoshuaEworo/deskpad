@@ -36,6 +36,7 @@ class Settings(BaseModel):
     width: int = Field(default=1440, ge=640, le=3840)
     quality: int = Field(default=75, ge=40, le=90)
     port: int = Field(default=8765, ge=1024, le=65535)
+    check_updates: bool = True
     keep_awake: bool = True
     launch_at_login: bool = False
     camera: bool = False

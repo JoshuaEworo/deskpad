@@ -4,13 +4,16 @@ import argparse
 import io
 import logging
 import os
+import queue
 import sys
 import threading
+import time
 from pathlib import Path
 
 import qrcode
 import uvicorn
 
+from . import updates
 from .cli import local_ip
 from .identity import Identity
 from .native import enable_dpi_awareness
@@ -187,6 +190,11 @@ def build_window(settings, service, directory, engine):
             self.last_qr = self.last_devices = self.last_pending = None
             self.last_error = ""
             self.quitting = False
+            self.update_results = queue.SimpleQueue()
+            self.update_busy = False
+            self.update_release = self.update_installer = None
+            self.update_checked = 0.0
+            self.updates_configured = bool(updates.update_key())
             central = QWidget()
             self.setCentralWidget(central)
             outer = QHBoxLayout(central)
@@ -213,7 +221,7 @@ def build_window(settings, service, directory, engine):
                 nav.addWidget(item)
                 self.nav.append(item)
             nav.addStretch()
-            nav.addWidget(label("Deskpad Alpha · 0.2", "muted"))
+            nav.addWidget(label(f"Deskpad {updates.VERSION}", "muted"))
             outer.addWidget(side)
             outer.addWidget(self.pages, 1)
             self.overview()
@@ -400,7 +408,145 @@ def build_window(settings, service, directory, engine):
             layout.addWidget(button("Save settings", self.save_settings, "primary"))
             self.save_note = label("", "muted", True)
             layout.addWidget(self.save_note)
+            frame, content = card()
+            content.addWidget(label("App updates", "section"))
+            content.addWidget(label(f"Installed: {updates.VERSION}", "muted"))
+            self.auto_update = QCheckBox("Check for updates automatically")
+            self.auto_update.setChecked(settings.check_updates)
+            self.auto_update.toggled.connect(self.update_preference)
+            content.addWidget(self.auto_update)
+            self.update_note = label(
+                "Updates install only when you choose. Pairing and settings are kept.",
+                "muted",
+                True,
+            )
+            content.addWidget(self.update_note)
+            self.update_notes = label("", "muted", True)
+            self.update_notes.hide()
+            content.addWidget(self.update_notes)
+            row = QHBoxLayout()
+            self.check_button = button("Check for updates", self.check_updates)
+            self.install_button = button("Download update", self.install_update, "primary")
+            self.install_button.hide()
+            row.addWidget(self.check_button)
+            row.addWidget(self.install_button)
+            content.addLayout(row)
+            layout.addWidget(frame)
             layout.addStretch()
+            self.update_timer = QTimer(self)
+            self.update_timer.timeout.connect(self.poll_updates)
+            self.update_timer.start(250)
+
+        def update_preference(self, enabled):
+            settings.check_updates = enabled
+            settings.save(directory / "settings.json")
+
+        def update_job(self, kind, operation):
+            self.update_busy = True
+            self.check_button.setEnabled(False)
+            self.install_button.setEnabled(False)
+
+            def run():
+                try:
+                    self.update_results.put((kind, operation()))
+                except Exception as error:
+                    # Do not display remote response bodies or signed payloads.
+                    message = (
+                        str(error)
+                        if isinstance(error, ValueError)
+                        else "Could not reach the update service. Try again later."
+                    )
+                    self.update_results.put(("error", message))
+
+            threading.Thread(target=run, name="deskpad-updates", daemon=True).start()
+
+        def check_updates(self):
+            if self.update_busy:
+                return
+            self.update_checked = time.monotonic()
+            self.update_note.setText("Checking for updates…")
+            self.update_job("checked", updates.check_update)
+
+        def install_update(self):
+            if self.update_busy or not self.update_release:
+                return
+            if not updates.can_install():
+                self.update_note.setText(
+                    "This is a portable or source build. Install Deskpad with the Windows installer to enable in-app updates."
+                )
+                return
+            if self.update_installer:
+                if service.snapshot()["connected"]:
+                    self.update_note.setText(
+                        "Disconnect your phone before restarting to install the update."
+                    )
+                    return
+                answer = QMessageBox.question(
+                    self,
+                    "Update Deskpad",
+                    "Restart Deskpad and install this update? Your settings and paired phones will be kept.",
+                )
+                if answer != QMessageBox.StandardButton.Yes:
+                    return
+                try:
+                    updates.launch_installer(self.update_installer, self.update_release)
+                except Exception:
+                    self.update_note.setText(
+                        "Could not start the update installer. Download it again."
+                    )
+                    self.update_installer = None
+                    self.install_button.setText("Download update")
+                    return
+                self.quit()
+                return
+            self.update_note.setText("Downloading update…")
+            release = self.update_release
+            self.update_job(
+                "downloaded",
+                lambda: updates.download_update(
+                    release,
+                    directory / "updates",
+                    lambda percent: self.update_results.put(("progress", percent)),
+                ),
+            )
+
+        def poll_updates(self):
+            if (
+                settings.check_updates
+                and self.updates_configured
+                and not self.update_busy
+                and (not self.update_checked or time.monotonic() - self.update_checked >= 86400)
+            ):
+                self.check_updates()
+            while not self.update_results.empty():
+                kind, value = self.update_results.get()
+                if kind == "progress":
+                    self.update_note.setText(f"Downloading update… {value}%")
+                    continue
+                self.update_busy = False
+                self.check_button.setEnabled(True)
+                self.install_button.setEnabled(True)
+                if kind == "error":
+                    self.update_note.setText(value)
+                elif kind == "checked":
+                    self.update_release = value
+                    self.update_installer = None
+                    self.install_button.setText("Download update")
+                    self.install_button.setVisible(value is not None)
+                    self.update_notes.setVisible(value is not None)
+                    self.update_notes.setText(value.notes if value else "")
+                    self.update_note.setText(
+                        f"Deskpad {value.version} is available." if value else "You're up to date."
+                    )
+                    if value and self.tray:
+                        self.tray.showMessage(
+                            "Deskpad update available",
+                            f"Version {value.version} is ready. Open Settings → App updates to install.",
+                        )
+                elif kind == "downloaded":
+                    self.update_installer = value
+                    self.install_button.setText("Restart & install")
+                    self.update_note.setText("Download verified. Ready when you are.")
 
         def navigate(self, index):
             self.pages.setCurrentIndex(index)

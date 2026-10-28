@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deskpad"
-version = "0.2.0a2"
+version = "0.2.0a3"
 description = "Your desktop above. Your controls below."
 requires-python = ">=3.11"
 license = "MIT"

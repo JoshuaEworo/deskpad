@@ -283,21 +283,54 @@
           aria-label="Phone camera and audio"
         >
           <label class="check-row"
-            ><input id="phone-camera" type="checkbox" disabled /> Use phone camera</label
+            ><input
+              id="phone-camera"
+              aria-describedby="phone-camera-help"
+              type="checkbox"
+              disabled
+            />
+            Use phone camera</label
           >
+          <p id="phone-camera-help" class="settings-help">
+            Connect to check camera setup.
+          </p>
           <label class="check-row"
-            ><input id="phone-microphone" type="checkbox" disabled /> Use phone
-            microphone</label
+            ><input
+              id="phone-microphone"
+              aria-describedby="phone-microphone-help"
+              type="checkbox"
+              disabled
+            />
+            Use phone microphone</label
           >
+          <p id="phone-microphone-help" class="settings-help">
+            Connect to check microphone setup.
+          </p>
           <label class="check-row"
-            ><input id="phone-speaker" type="checkbox" disabled /> Hear laptop
-            audio</label
+            ><input
+              id="phone-speaker"
+              aria-describedby="phone-speaker-help"
+              type="checkbox"
+              disabled
+            />
+            Hear laptop audio</label
           >
+          <p id="phone-speaker-help" class="settings-help">
+            Connect to check laptop audio setup.
+          </p>
           <button id="flip-camera">Switch front / back camera</button>
-          <video id="camera-preview" muted playsinline autoplay hidden aria-label="Phone camera preview"></video>
+          <video
+            id="camera-preview"
+            muted
+            playsinline
+            autoplay
+            hidden
+            aria-label="Phone camera preview"
+          ></video>
           <p class="settings-help">
-            Allow media in desktop Settings first. Camera and mic require HTTPS
-            and installed virtual devices on Windows.
+            Your laptop's Settings → Phone camera & audio has setup
+            instructions. Camera and microphone access requires a secure
+            connection.
           </p>
         </div>
         <div id="shortcuts" class="shortcuts" aria-label="Shortcuts">

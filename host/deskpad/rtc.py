@@ -9,6 +9,7 @@ from fractions import Fraction
 from pydantic import ValidationError
 
 from .input import InputSession
+from .media_setup import media_permissions
 from .protocol import INPUT_ADAPTER, MediaState, Ping
 
 log = logging.getLogger("deskpad")
@@ -69,9 +70,10 @@ class Peer:
                     "protocol": 2,
                     "cursor": self.hub.native.position(),
                     "media": {
-                        "camera": self.hub.settings.camera,
-                        "microphone": self.hub.settings.microphone,
-                        "speakers": self.hub.settings.speakers,
+                        **media_permissions(
+                            self.hub.settings, self.hub.service.snapshot()["media_setup"]
+                        ),
+                        "setup": self.hub.service.snapshot()["media_setup"],
                     },
                 }
             )
@@ -107,7 +109,24 @@ class Peer:
                     kind = {"camera": "video", "microphone": "audio", "speakers": "speakers"}[
                         message.kind
                     ]
+                    if (
+                        message.enabled
+                        and not media_permissions(
+                            self.hub.settings, self.hub.service.snapshot()["media_setup"]
+                        )[message.kind]
+                    ):
+                        self.send(
+                            {
+                                "type": "media-status",
+                                "kind": kind,
+                                "error": "Finish setup and enable this feature in Deskpad on your laptop first.",
+                            }
+                        )
+                        continue
                     self.media_on[kind] = message.enabled
+                    self.hub.service.media_state(
+                        message.kind, "Starting" if message.enabled else "Idle"
+                    )
                     queue = self.media_queues.get(kind)
                     if not message.enabled and queue is not None:
                         while not queue.empty():
@@ -203,8 +222,12 @@ class Peer:
                     if track.kind == "video"
                     else self.hub.settings.microphone
                 )
-                await loop.run_in_executor(worker, sink.write, frame, enabled)
+                written = await loop.run_in_executor(worker, sink.write, frame, enabled)
+                feature = "camera" if track.kind == "video" else "microphone"
+                if written and enabled:
+                    self.hub.service.media_state(feature, "Active")
                 if sink.error:
+                    self.hub.service.media_state(feature, "Needs attention", sink.error)
                     self.send({"type": "media-status", "kind": track.kind, "error": sink.error})
                     sink.error = ""
         except asyncio.CancelledError:
@@ -236,6 +259,8 @@ class Peer:
             self.hub.lease.update(id=None, token=None, video=None)
         self.hub.peers.pop(self.owner, None)
         self.hub.service.update(connected=False)
+        for name in ("camera", "microphone", "speakers"):
+            self.hub.service.media_state(name, "Idle")
         await self.pc.close()
 
 
@@ -328,8 +353,11 @@ def system_audio_track(hub, peer):
                 self.worker, self.audio.read, peer.media_on["speakers"]
             )
             if self.audio.error:
+                hub.service.media_state("speakers", "Needs attention", self.audio.error)
                 peer.send({"type": "media-status", "kind": "speakers", "error": self.audio.error})
                 self.audio.error = ""
+            elif self.audio.active and peer.media_on["speakers"]:
+                hub.service.media_state("speakers", "Active")
             frame = AudioFrame.from_ndarray(
                 np.ascontiguousarray(samples.T), format="fltp", layout="stereo"
             )

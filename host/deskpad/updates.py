@@ -17,7 +17,7 @@ import httpx
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-VERSION = "0.2.0-alpha.2"
+VERSION = "0.2.0-alpha.3"
 MAX_INSTALLER = 300 * 1024 * 1024
 REPOSITORY = "JoshuaEworo/deskpad"
 FEED = f"https://github.com/{REPOSITORY}/releases/download/update-channel/update.json"
@@ -172,6 +172,7 @@ try {
     $process = Start-Process -FilePath $Installer -ArgumentList $args -PassThru -Wait
     if ($process.ExitCode -ne 0) { throw ('Installer failed: ' + $process.ExitCode) }
     Start-Process -FilePath (Join-Path $AppDir 'Deskpad.exe')
+    Set-Content -LiteralPath (Join-Path (Split-Path $Installer) 'installed.txt') -Value $Hash
 } catch {
     $_ | Out-File -LiteralPath (Join-Path (Split-Path $Installer) 'update-error.txt')
     Add-Type -AssemblyName PresentationFramework

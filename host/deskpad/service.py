@@ -18,6 +18,9 @@ class Service:
             "error": "",
             "url": "",
             "pin": "",
+            "media_setup": None,
+            "media_scanning": False,
+            "media_activity": {},
         }
         self.loop = None
         self.handler = None
@@ -25,6 +28,10 @@ class Service:
     def update(self, **values):
         with self._lock:
             self._state.update(values)
+
+    def media_state(self, kind, state, error=""):
+        with self._lock:
+            self._state["media_activity"][kind] = {"state": state, "error": error}
 
     def snapshot(self):
         with self._lock:

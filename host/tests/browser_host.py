@@ -73,6 +73,17 @@ if __name__ == "__main__":
             media_devices.MediaSink = TestSink
             app.state.rtc.settings.camera = True
             app.state.rtc.settings.microphone = True
+            app.state.rtc.settings.microphone_output = 0
+            app.state.rtc.settings.microphone_output_name = "CABLE Input (VB-Audio Virtual Cable)"
+            app.state.service.update(
+                media_setup={
+                    **{
+                        name: {"ready": True, "state": "Ready", "detail": "Test device"}
+                        for name in ("camera", "microphone", "speakers")
+                    },
+                    "outputs": [{"id": 0, "name": "CABLE Input (VB-Audio Virtual Cable)"}],
+                }
+            )
             return {"ok": True}
 
         app.router.routes.insert(0, app.router.routes.pop())

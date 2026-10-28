@@ -1,6 +1,9 @@
 """Explicitly enabled Windows media adapters. No driver downloads or silent installs."""
 
+import os
 import time
+
+from .media_setup import supported_cable
 
 
 class MediaSink:
@@ -30,7 +33,9 @@ class MediaSink:
                 import sounddevice as sd
                 from av import AudioResampler
 
-                if self.settings.microphone_output is None:
+                if self.settings.microphone_output is None or not supported_cable(
+                    self.settings.microphone_output_name
+                ):
                     raise RuntimeError(
                         "Choose an installed virtual microphone cable output in desktop Settings."
                     )
@@ -54,6 +59,7 @@ class MediaSink:
                     self.resampler = AudioResampler(format="s16", layout="stereo", rate=48000)
                 for converted in self.resampler.resample(frame):
                     self.device.write(converted.to_ndarray().tobytes())
+            return True
         except Exception as error:
             self.close()
             self.retry_at = time.monotonic() + 15
@@ -74,6 +80,8 @@ class SystemAudio:
     def __init__(self, settings):
         self.settings = settings
         self.context = self.recorder = None
+        self.com = None
+        self.active = False
         self.error = ""
         self.retry_at = 0
 
@@ -86,6 +94,17 @@ class SystemAudio:
         if time.monotonic() < self.retry_at:
             return np.zeros((960, 2), dtype=np.float32)
         try:
+            if os.name == "nt" and self.com is None:
+                import ctypes
+
+                ole32 = ctypes.windll.ole32
+                # SoundCard initializes COM at import time, which may have been on
+                # an earlier worker. Each capture worker needs its own apartment.
+                result = ole32.CoInitializeEx(None, 0)
+                if result in (0, 1):
+                    self.com = ole32
+                elif result != -2147417850:  # RPC_E_CHANGED_MODE: already initialized
+                    raise RuntimeError("Could not initialize Windows audio")
             import soundcard as sc
 
             if self.recorder is None:
@@ -97,7 +116,9 @@ class SystemAudio:
                 loopback = sc.get_microphone(speaker.id, include_loopback=True)
                 self.context = loopback.recorder(samplerate=48000, channels=2, blocksize=960)
                 self.recorder = self.context.__enter__()
-            return self.recorder.record(numframes=960).astype(np.float32)
+            samples = self.recorder.record(numframes=960).astype(np.float32)
+            self.active = True
+            return samples
         except Exception as error:
             self.close()
             self.retry_at = time.monotonic() + 15
@@ -105,6 +126,12 @@ class SystemAudio:
             return np.zeros((960, 2), dtype=np.float32)
 
     def close(self):
-        if self.context:
-            self.context.__exit__(None, None, None)
-        self.context = self.recorder = None
+        try:
+            if self.context:
+                self.context.__exit__(None, None, None)
+        finally:
+            self.context = self.recorder = None
+            self.active = False
+            if self.com is not None:
+                self.com.CoUninitialize()
+                self.com = None

@@ -1,9 +1,13 @@
-Deskpad 0.2.0-alpha.2
+Deskpad 0.2.0-alpha.3
 
-- Adds the desktop App updates panel with verified downloads and restart to install.
-- Uses the mint Deskpad logo for the Windows app, tray, shortcuts and installer.
-- Compacts connection access controls and fixes phone name input spacing.
-- Keeps usable connection routes when network discovery stalls.
+- Clarifies Launch Deskpad on start with Windows sign-in help.
+- Gives camera, microphone and laptop audio separate setup and live-use statuses.
+- Adds step-by-step setup instructions and official download links.
+- Checks supported Windows media devices without capturing media.
+- Excludes physical speakers from phone microphone routing, including old settings.
+- Explains unavailable media controls on the phone.
+- Initializes Windows audio capture on its own worker thread.
 
-This is an alpha. Native Windows/iPhone cellular acceptance is still in progress.
-Bundled virtual webcam and microphone drivers are not included.
+Camera and microphone currently use installed OBS/Unity virtual camera and
+VB-CABLE adapters. Bundled Deskpad virtual devices are not included.
+Physical Windows/iPhone/Zoom acceptance remains in progress.

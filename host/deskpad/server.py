@@ -15,6 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .auth import Pairing
 from .capture import ScreenCapture
 from .input import InputSession
+from .media_setup import inspect_media
 from .native import DemoInput, WindowsInput
 from .protocol import INPUT_ADAPTER, Ping
 from .service import Service
@@ -126,18 +127,33 @@ def create_app(
                 await remote.start()
             elif remote:
                 await remote.stop()
+        elif action == "refresh-media":
+            await refresh_media()
         service.update(local_devices=list(pairing.devices))
+
+    async def refresh_media():
+        if service.snapshot()["media_scanning"]:
+            return
+        service.update(media_scanning=True)
+        try:
+            result = await asyncio.get_running_loop().run_in_executor(executor, inspect_media)
+            service.update(media_setup=result)
+        finally:
+            service.update(media_scanning=False)
 
     @asynccontextmanager
     async def lifespan(app):
         service.loop = asyncio.get_running_loop()
         service.handler = command
         service.update(running=True, pin=pairing.pin, local_devices=list(pairing.devices))
+        probe = asyncio.create_task(refresh_media())
         if remote and settings.remote:
             await remote.start()
         try:
             yield
         finally:
+            probe.cancel()
+            await asyncio.gather(probe, return_exceptions=True)
             service.handler = None
             if remote:
                 await remote.stop()

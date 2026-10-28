@@ -16,6 +16,7 @@ import uvicorn
 from . import updates
 from .cli import local_ip
 from .identity import Identity
+from .media_setup import CAMERA_URL, MICROPHONE_URL, supported_cable
 from .native import enable_dpi_awareness
 from .server import create_app
 from .service import Service
@@ -137,6 +138,7 @@ def build_window(settings, service, directory, engine):
         QApplication,
         QCheckBox,
         QComboBox,
+        QDialog,
         QFormLayout,
         QFrame,
         QHBoxLayout,
@@ -362,48 +364,65 @@ def build_window(settings, service, directory, engine):
             content.addLayout(form)
             self.awake = QCheckBox("Keep laptop awake while a phone is connected")
             self.awake.setChecked(settings.keep_awake)
-            self.login = QCheckBox("Launch Deskpad when I sign in")
+            self.login = QCheckBox("Launch Deskpad on start")
             self.login.setChecked(settings.launch_at_login)
             content.addWidget(self.awake)
             content.addWidget(self.login)
+            content.addWidget(
+                label("Opens Deskpad automatically when you sign in to Windows.", "muted", True)
+            )
             layout.addWidget(frame)
             frame, content = card()
             content.addWidget(label("Phone camera & audio", "section"))
             content.addWidget(
                 label(
-                    "Allow each feature here, then turn it on from your phone. Camera and microphone need installed virtual devices; they are not bundled Deskpad drivers yet.",
+                    "Enable a feature here and save. Then turn it on from your phone's menu.",
                     "muted",
                     True,
                 )
             )
-            self.camera = QCheckBox("Allow phone camera → installed virtual camera")
-            self.camera.setChecked(settings.camera)
-            self.mic = QCheckBox("Allow phone microphone → selected virtual audio output")
-            self.mic.setChecked(settings.microphone)
-            self.speakers = QCheckBox("Allow laptop audio → phone speaker")
-            self.speakers.setChecked(settings.speakers)
-            for field in (self.camera, self.mic, self.speakers):
-                content.addWidget(field)
+            self.media_labels = {}
+            self.media_details = {}
+            self.media_buttons = {}
+            self.media_setup_seen = None
+            self.media_outputs_seen = None
+            self.camera = QCheckBox("Use phone as a webcam")
+            self.mic = QCheckBox("Use phone as a microphone")
+            self.speakers = QCheckBox("Hear laptop audio on phone")
+            self.media_fields = {
+                "camera": self.camera,
+                "microphone": self.mic,
+                "speakers": self.speakers,
+            }
             self.mic_device = QComboBox()
-            self.mic_device.addItem("Select a virtual audio cable output…", None)
-            try:
-                import sounddevice as sd
-
-                for index, device in enumerate(sd.query_devices()):
-                    if device["max_output_channels"] >= 2:
-                        self.mic_device.addItem(str(device["name"]), index)
-            except Exception:
-                pass
-            chosen = self.mic_device.findData(settings.microphone_output)
-            self.mic_device.setCurrentIndex(max(0, chosen))
-            content.addWidget(self.mic_device)
-            content.addWidget(
-                label(
-                    "Select the cable's recording endpoint in Zoom. Do not select physical speakers here, or your microphone will play aloud.",
-                    "muted",
-                    True,
+            self.mic_device.addItem("Select a virtual microphone cable…", None)
+            self.mic_device.setAccessibleName("Virtual microphone cable")
+            for name, field in self.media_fields.items():
+                feature = QVBoxLayout()
+                feature.setSpacing(7)
+                row = QHBoxLayout()
+                field.setChecked(getattr(settings, name))
+                field.setEnabled(False)
+                row.addWidget(field, 1)
+                status = label("Checking setup…", "muted")
+                row.addWidget(status)
+                self.media_labels[name] = status
+                feature.addLayout(row)
+                detail = label("Checking your Windows devices.", "muted", True)
+                self.media_details[name] = detail
+                feature.addWidget(detail)
+                if name == "microphone":
+                    feature.addWidget(self.mic_device)
+                action = button(
+                    "Setup & instructions", lambda checked=False, n=name: self.media_guide(n)
                 )
-            )
+                self.media_buttons[name] = action
+                feature.addWidget(action, 0, Qt.AlignmentFlag.AlignLeft)
+                content.addLayout(feature)
+                field.toggled.connect(self.refresh_media_status)
+            self.mic_device.currentIndexChanged.connect(self.refresh_media_status)
+            self.media_refresh = button("Refresh devices", lambda: service.command("refresh-media"))
+            content.addWidget(self.media_refresh, 0, Qt.AlignmentFlag.AlignLeft)
             layout.addWidget(frame)
             layout.addWidget(button("Save settings", self.save_settings, "primary"))
             self.save_note = label("", "muted", True)
@@ -436,6 +455,149 @@ def build_window(settings, service, directory, engine):
             self.update_timer = QTimer(self)
             self.update_timer.timeout.connect(self.poll_updates)
             self.update_timer.start(250)
+
+        def media_guide(self, name):
+            titles = {
+                "camera": "Phone as a webcam",
+                "microphone": "Phone as a microphone",
+                "speakers": "Laptop audio on your phone",
+            }
+            setup = service.snapshot().get("media_setup") or {}
+            device = setup.get("camera", {}).get("device") or "OBS Virtual Camera"
+            steps = {
+                "camera": [
+                    "One-time setup: install OBS Studio with its virtual camera component, then return here and Refresh devices. Skip this if a supported camera is already detected.",
+                    "Enable Use phone as a webcam in Deskpad and Save settings.",
+                    "Connect your phone. Open its Deskpad menu and turn on Use phone camera. Allow camera access when your phone asks.",
+                    f"In Zoom on this laptop, choose {device} as your camera. Deskpad supplies the picture directly; leave OBS's Start Virtual Camera off.",
+                ],
+                "microphone": [
+                    "One-time setup: install VB-CABLE from VB-Audio. Follow its installer instructions and restart Windows if requested. Return here and Refresh devices.",
+                    "Choose the detected virtual cable in Deskpad, enable Use phone as a microphone, and Save settings. Ordinary speakers are excluded from this list.",
+                    "Connect your phone. Open its Deskpad menu and turn on Use phone microphone. Allow microphone access when your phone asks.",
+                    "In Zoom on this laptop, choose CABLE Output (VB-Audio Virtual Cable) as your microphone. For CABLE-A/B, choose the matching Output.",
+                ],
+                "speakers": [
+                    "No extra virtual device is needed. Make sure Windows has a sound output selected.",
+                    "Enable Hear laptop audio on phone and Save settings.",
+                    "Connect your phone. Open its Deskpad menu and turn on Hear laptop audio. Your iPhone may require a tap to begin playback.",
+                    "This sends laptop sound to your phone; it does not select a microphone or camera for Zoom. Use headphones if a call feeds sound back into your microphone.",
+                ],
+            }
+            dialog = QDialog(self)
+            dialog.setWindowTitle(titles[name])
+            dialog.setMinimumWidth(460)
+            dialog.setMaximumWidth(560)
+            body = QVBoxLayout(dialog)
+            body.setContentsMargins(24, 22, 24, 22)
+            body.setSpacing(16)
+            body.addWidget(label(titles[name], "section"))
+            for index, step in enumerate(steps[name], 1):
+                body.addWidget(label(f"{index}. {step}", wrap=True))
+            if name in ("camera", "microphone"):
+                import webbrowser
+
+                url = CAMERA_URL if name == "camera" else MICROPHONE_URL
+                body.addWidget(button("Open official download page", lambda: webbrowser.open(url)))
+                body.addWidget(
+                    label(
+                        "Deskpad does not install third-party drivers automatically.", "muted", True
+                    )
+                )
+            row = QHBoxLayout()
+
+            def recheck():
+                service.command("refresh-media")
+                dialog.accept()
+
+            row.addWidget(button("Check setup again", recheck, "primary"))
+            row.addWidget(button("Done", dialog.accept))
+            body.addLayout(row)
+            dialog.exec()
+
+        def refresh_media_status(self):
+            snapshot = service.snapshot()
+            setup = snapshot.get("media_setup")
+            scanning = snapshot.get("media_scanning", False)
+            self.media_refresh.setEnabled(not scanning)
+            self.media_refresh.setText("Checking devices…" if scanning else "Refresh devices")
+            if setup:
+                outputs = setup["outputs"]
+                if outputs != self.media_outputs_seen:
+                    self.media_outputs_seen = outputs
+                    current = self.mic_device.currentData()
+                    self.mic_device.blockSignals(True)
+                    self.mic_device.clear()
+                    self.mic_device.addItem("Select a virtual microphone cable…", None)
+                    for item in outputs:
+                        self.mic_device.addItem(item["name"], item["id"])
+                    selected = self.mic_device.findData(
+                        current if current is not None else settings.microphone_output
+                    )
+                    if (
+                        selected < 1
+                        and len(outputs) == 1
+                        and (
+                            settings.microphone_output is None
+                            or supported_cable(settings.microphone_output_name)
+                        )
+                    ):
+                        selected = 1
+                    self.mic_device.setCurrentIndex(max(0, selected))
+                    self.mic_device.blockSignals(False)
+            self.mic_device.setVisible(bool(setup and setup["outputs"]))
+            self.mic_device.setEnabled(bool(setup and setup["outputs"]) and not scanning)
+            for name, field in self.media_fields.items():
+                info = (
+                    setup[name]
+                    if setup
+                    else {
+                        "ready": False,
+                        "state": "Checking setup…",
+                        "detail": "Checking your Windows devices.",
+                    }
+                )
+                ready = info["ready"]
+                if name == "microphone":
+                    ready = ready and self.mic_device.currentData() is not None
+                field.setEnabled(ready and not scanning)
+                # Missing prerequisites cannot be represented as an enabled feature.
+                if setup and not ready and field.isChecked():
+                    field.blockSignals(True)
+                    field.setChecked(False)
+                    field.blockSignals(False)
+                state, detail = info["state"], info["detail"]
+                if name == "microphone" and info["ready"] and not ready:
+                    state, detail = (
+                        "Choose a cable",
+                        "Select the virtual cable below, then enable and save.",
+                    )
+                elif ready:
+                    pending_cable = (
+                        name == "microphone"
+                        and field.isChecked()
+                        and (
+                            self.mic_device.currentData() != settings.microphone_output
+                            or self.mic_device.currentText() != settings.microphone_output_name
+                        )
+                    )
+                    if field.isChecked() != getattr(settings, name) or pending_cable:
+                        state = "Save to enable" if field.isChecked() else "Save to turn off"
+                    elif field.isChecked():
+                        activity = snapshot["media_activity"].get(name, {})
+                        state = activity.get("state", "Idle")
+                        if state == "Idle":
+                            state = "Enabled on laptop"
+                            detail = "Turn it on in your phone's Deskpad menu. " + detail
+                        elif activity.get("error"):
+                            detail = activity["error"]
+                    else:
+                        state = "Ready to enable"
+                if scanning:
+                    state = "Checking…"
+                self.media_labels[name].setText(state)
+                self.media_details[name].setText(detail)
+                self.media_buttons[name].setText("How to use" if ready else "Set up")
 
         def update_preference(self, enabled):
             settings.check_updates = enabled
@@ -592,11 +754,15 @@ def build_window(settings, service, directory, engine):
                         else "",
                     }
                 )
+                if changes.microphone and changes.microphone_output is None:
+                    raise ValueError(
+                        "Choose a virtual microphone cable first, or turn off phone microphone."
+                    )
                 set_startup(changes.launch_at_login)
                 changes.save(directory / "settings.json")
                 service.command("settings", changes.model_dump())
                 self.save_note.setText(
-                    "Saved. New stream settings apply to subsequent frames; device changes apply on reconnect."
+                    "Saved. Media permission changes reconnect your phone. Then enable the feature in your phone's Deskpad menu."
                 )
             except Exception as error:
                 QMessageBox.warning(self, "Could not save settings", str(error))
@@ -612,6 +778,7 @@ def build_window(settings, service, directory, engine):
 
         def refresh(self):
             snapshot = service.snapshot()
+            self.refresh_media_status()
             paused, connected = snapshot["paused"], snapshot["connected"]
             self.title.setText(
                 "Connections paused"

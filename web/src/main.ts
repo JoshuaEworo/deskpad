@@ -122,13 +122,20 @@ const connection = new Connection({
     );
   },
   mediaAllowed(allowed) {
-    for (const [id, value] of [
-      ["phone-camera", allowed.camera],
-      ["phone-microphone", allowed.microphone],
-      ["phone-speaker", allowed.speakers],
+    for (const [id, name, value] of [
+      ["phone-camera", "camera", allowed.camera],
+      ["phone-microphone", "microphone", allowed.microphone],
+      ["phone-speaker", "speakers", allowed.speakers],
     ] as const) {
       $<HTMLInputElement>(id).disabled = !value;
-      $(id).title = value ? "" : "Allow this feature in desktop Settings first";
+      const setup = allowed.setup?.[name];
+      const detail = value
+        ? setup?.detail || "Ready. Turn this on to start."
+        : setup && !setup.ready
+          ? `${setup.state} on laptop. ${setup.detail} Open Deskpad Settings on your laptop.`
+          : "Enable this feature in Deskpad Settings on your laptop and save.";
+      $(id).title = detail;
+      $(`${id}-help`).textContent = detail;
     }
   },
   mediaError(kind, error) {

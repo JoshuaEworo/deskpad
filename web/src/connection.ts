@@ -7,6 +7,10 @@ export type Hooks = {
     camera: boolean;
     microphone: boolean;
     speakers: boolean;
+    setup?: Record<
+      string,
+      { ready: boolean; state: string; detail: string }
+    > | null;
   }) => void;
   mediaError?: (kind: string, error: string) => void;
   localCamera?: (stream: MediaStream | null) => void;

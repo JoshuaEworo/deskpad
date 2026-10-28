@@ -39,6 +39,8 @@ jobs:
       - run: Compress-Archive -Path dist/Deskpad -DestinationPath dist/Deskpad-Windows-x64.zip
       - name: Create per-user installer
         run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" scripts/installer.iss'
+      - name: Test installed update handoff and persistence
+        run: python scripts/test_installer_upgrade.py
       - uses: actions/upload-artifact@v4
         with:
           name: Deskpad-Windows-x64

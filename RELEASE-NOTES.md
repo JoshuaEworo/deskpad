@@ -1,6 +1,7 @@
 Deskpad 0.2.0-alpha.4
 
 - Adds a public landing page with a Windows download and phone connection entry.
+- Renders pairing QR modules on an exact pixel grid for reliable scanning.
 - Adds QR scanning inside the phone site/PWA, with camera capture stopped on exit.
 - Removes revoked phone access immediately and returns the phone to pairing.
 - Makes End session explicit, retaining pairing and waiting for intentional reconnect.

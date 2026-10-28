@@ -10,7 +10,6 @@ import threading
 import time
 from pathlib import Path
 
-import qrcode
 import uvicorn
 
 from . import updates
@@ -18,6 +17,7 @@ from .cli import local_ip
 from .identity import Identity
 from .media_setup import CAMERA_URL, MICROPHONE_URL, supported_cable
 from .native import enable_dpi_awareness
+from .qr import pairing_qr
 from .server import create_app
 from .service import Service
 from .settings import Settings, state_directory
@@ -828,19 +828,14 @@ def build_window(settings, service, directory, engine):
             if url != self.last_qr:
                 self.last_qr = url
                 if url:
-                    image = qrcode.make(url, box_size=6, border=3)
+                    ratio = self.qr.devicePixelRatioF()
+                    image = pairing_qr(url, 204 * ratio)
                     output = io.BytesIO()
                     image.save(output, format="PNG")
                     pixmap = QPixmap()
                     pixmap.loadFromData(output.getvalue())
-                    self.qr.setPixmap(
-                        pixmap.scaled(
-                            204,
-                            204,
-                            Qt.AspectRatioMode.KeepAspectRatio,
-                            Qt.TransformationMode.FastTransformation,
-                        )
-                    )
+                    pixmap.setDevicePixelRatio(ratio)
+                    self.qr.setPixmap(pixmap)
                 else:
                     self.qr.clear()
                     self.qr.setText("Connecting…")

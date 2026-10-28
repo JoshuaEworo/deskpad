@@ -73,3 +73,6 @@ run, checks out that exact SHA, and publishes only if its version is new. Artifa
 come from that validated run. A newer signed channel blocks downgrade. Existing
 version assets remain immutable. Documentation-only commits do not create releases.
 Manual publication remains available for a selected successful build.
+
+Publication only proceeds for the current main head. If main advances during a
+build, that older artifact is skipped; the newer build must pass before release.

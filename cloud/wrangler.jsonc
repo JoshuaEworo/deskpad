@@ -1,0 +1,10 @@
+{
+  "name": "deskpad", "main": "src/index.ts", "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "assets": {"directory": "../host/deskpad/static", "binding": "ASSETS", "run_worker_first": true},
+  "durable_objects": {"bindings": [{"name": "ROOMS", "class_name": "Room"}, {"name":"BUDGET", "class_name":"Budget"}]},
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["Room","Budget"]}],
+  "ratelimits": [{"name": "REGISTRATION_LIMIT", "namespace_id": "1001", "simple": {"limit": 5, "period": 60}}, {"name": "REQUEST_LIMIT", "namespace_id": "1002", "simple": {"limit": 120, "period": 60}}],
+  "vars": {"TURN_ENABLED": "false", "ENROLLMENT_REQUIRED":"true", "TURN_DAILY_CREDENTIALS":"48"},
+  "observability": {"enabled": false}
+}

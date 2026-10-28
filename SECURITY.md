@@ -11,3 +11,12 @@ To stop sharing, stop the host with Ctrl+C. To revoke remembered phones, stop th
 Local credential hashes live under `%LOCALAPPDATA%\Deskpad\devices.json` on Windows. Normal logging excludes screen data, typed text, tokens, and access URLs. The pairing code is deliberately visible in the host console; do not post screenshots of it.
 
 Until this repository has a dedicated private reporting contact, use GitHub's private vulnerability reporting if enabled. Do not publish a working exploit or credentials in a public issue. For non-sensitive scope/documentation questions, a normal issue is fine.
+
+
+## Remote alpha
+
+The new hosted HTTPS/WebRTC path has a separate device-key trust model. See
+[the threat model](docs/REMOTE-THREAT-MODEL.md) and [deployment guide](cloud/README.md).
+Do not interpret the original LAN restrictions as an instruction to expose the
+HTTP host to the internet. Public remote access requires a separately deployed
+service, verified enrollment, strict origin checks and scoped TURN credentials.

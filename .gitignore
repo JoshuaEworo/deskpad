@@ -11,3 +11,7 @@ build/
 test-results/
 playwright-report/
 *.log
+
+.wrangler/
+.dev.vars
+.env*

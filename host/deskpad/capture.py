@@ -1,6 +1,8 @@
 """Capture and encoding stay on one worker thread; no queued historical frames."""
 
 import io
+import logging
+import os
 import time
 
 from PIL import Image, ImageDraw
@@ -11,9 +13,11 @@ class ScreenCapture:
         self.demo, self.monitor = demo, monitor
         self.width, self.quality = width, quality
         self._mss = None
+        self._gpu = None
+        self._gpu_failed = False
         self.sequence = 0
 
-    def frame(self):
+    def image(self):
         if self.demo:
             image = Image.new("RGB", (1280, 720), "#141c26")
             draw = ImageDraw.Draw(image)
@@ -40,9 +44,37 @@ class ScreenCapture:
             if not 1 <= self.monitor < len(self._mss.monitors):
                 raise RuntimeError(f"Monitor {self.monitor} is unavailable")
             bounds = dict(self._mss.monitors[self.monitor])
-            shot = self._mss.grab(bounds)
-            image = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
+            image = None
+            # With one physical output the DXGI primary maps unambiguously to MSS.
+            # Multiple-output machines retain explicit MSS monitor selection.
+            if os.name == "nt" and len(self._mss.monitors) == 2 and not self._gpu_failed:
+                try:
+                    if self._gpu is None:
+                        import dxcam
+
+                        self._gpu = dxcam.create(output_color="RGB", max_buffer_len=2)
+                    pixels = self._gpu.grab(new_frame_only=False)
+                    if pixels is not None and pixels.shape[:2] == (
+                        bounds["height"],
+                        bounds["width"],
+                    ):
+                        image = Image.fromarray(pixels)
+                except Exception:
+                    self._gpu_failed = True
+                    if self._gpu:
+                        self._gpu.release()
+                        self._gpu = None
+                    logging.getLogger("deskpad").warning(
+                        "GPU capture unavailable; using compatible capture"
+                    )
+            if image is None:
+                shot = self._mss.grab(bounds)
+                image = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
         image.thumbnail((self.width, self.width * 2))
+        return image, bounds
+
+    def frame(self):
+        image, bounds = self.image()
         buffer = io.BytesIO()
         image.save(buffer, format="JPEG", quality=self.quality)
         self.sequence += 1
@@ -55,6 +87,9 @@ class ScreenCapture:
         }, buffer.getvalue()
 
     def close(self):
+        if self._gpu:
+            self._gpu.release()
+            self._gpu = None
         if self._mss is not None:
             self._mss.close()
             self._mss = None

@@ -1,0 +1,39 @@
+name: Deploy remote service
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloudflare-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix web
+      - run: npm run build --prefix web
+      - run: npm ci --prefix cloud
+      - run: npm run check --prefix cloud
+      - run: npm test --prefix cloud
+      - name: Configure public widget key
+        env:
+          SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          if (!process.env.SITE_KEY) throw new Error('Set TURNSTILE_SITE_KEY before deployment');
+          const path='cloud/wrangler.jsonc';
+          const config=JSON.parse(fs.readFileSync(path,'utf8'));
+          config.vars.TURNSTILE_SITE_KEY=process.env.SITE_KEY;
+          fs.writeFileSync(path,JSON.stringify(config,null,2));
+          JS
+      - name: Deploy Worker
+        run: npm run deploy --prefix cloud
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

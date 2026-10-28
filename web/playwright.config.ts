@@ -12,6 +12,12 @@ export default defineConfig({
         defaultBrowserType: "chromium",
         launchOptions: {
           executablePath: process.env.DESKPAD_CHROMIUM_EXECUTABLE || undefined,
+          args: [
+            "--allow-loopback-in-peer-connection",
+            "--use-fake-device-for-media-stream",
+            "--use-fake-ui-for-media-stream",
+            "--disable-features=WebRtcHideLocalIpsWithMdns",
+          ],
         },
       },
     },

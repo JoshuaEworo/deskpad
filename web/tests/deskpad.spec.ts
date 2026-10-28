@@ -1,6 +1,13 @@
 import { test, expect, type Page } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.request.post("/test/reset");
+});
+
 async function pair(page: Page) {
+  await page.addInitScript(() =>
+    localStorage.setItem("deskpad.legacyVideo", "true"),
+  );
   await page.goto("/");
   await page.getByLabel("Pairing code").fill("123456");
   await page.getByRole("button", { name: "Connect to laptop" }).click();
@@ -172,6 +179,12 @@ test("two-finger right click retains keyboard focus; pinch scale survives keyboa
   await pair(page);
   await page.setViewportSize({ width: 390, height: 530 });
   const session = await page.context().newCDPSession(page);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
   const pad = (await page.locator("#trackpad").boundingBox())!;
   const baseline = (await events(page)).length;
   await session.send("Input.dispatchTouchEvent", {
@@ -384,4 +397,155 @@ test("landscape docks controls, isolates Mouse and View gestures, and restores p
     .poll(async () => (await page.locator("#picture").boundingBox())!.width)
     .toBeCloseTo(portraitWidth, 0);
   expect(errors).toEqual([]);
+});
+
+test("WebRTC desktop carries video, ordered input, cursor updates, and releases on disconnect", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "WebRTC engine smoke test");
+  await page.goto("/");
+  const capabilities = await (await page.request.get("/api/status")).json();
+  test.skip(!capabilities.rtc, "Media extra not installed");
+  await page.getByLabel("Pairing code").fill("123456");
+  await page.getByRole("button", { name: "Connect to laptop" }).click();
+  await expect(page.locator("#status")).toHaveText("Connected to laptop", {
+    timeout: 30000,
+  });
+  await expect
+    .poll(
+      () =>
+        page
+          .locator("#desktop-video")
+          .evaluate((v: HTMLVideoElement) => v.videoWidth),
+      { timeout: 15000 },
+    )
+    .toBeGreaterThan(0);
+  await page.locator("#typing").evaluate((el) => {
+    el.textContent = "hello";
+    el.dispatchEvent(
+      new InputEvent("input", {
+        inputType: "insertText",
+        data: "hello",
+        bubbles: true,
+      }),
+    );
+  });
+  await expect
+    .poll(async () => JSON.stringify(await events(page)))
+    .toContain("hello");
+  await page.locator("#settings-toggle").click();
+  await page.locator("#disconnect").click();
+  await expect
+    .poll(
+      async () => (await (await page.request.get("/api/status")).json()).busy,
+    )
+    .toBe(false);
+});
+
+test("remote QR pins identity, requires matching laptop approval, then streams over WebRTC", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "WebRTC remote handshake smoke test");
+  test.setTimeout(45000);
+  const config = await (await page.request.get("/test/remote")).json();
+  const fragment = Buffer.from(JSON.stringify(config)).toString("base64url");
+  await page.goto("/#deskpad=" + fragment);
+  await page.getByRole("button", { name: "Request pairing" }).click();
+  await expect(page.locator("#remote-pair-status")).toContainText(
+    "Approve this code",
+    { timeout: 10000 },
+  );
+  await expect(page.locator("#workspace")).toBeHidden();
+  expect(new URL(page.url()).hash).toBe("");
+  await page.request.post("/test/approve");
+  await expect(page.locator("#status")).toHaveText("Connected to laptop", {
+    timeout: 20000,
+  });
+  await expect
+    .poll(() =>
+      page
+        .locator("#desktop-video")
+        .evaluate((v: HTMLVideoElement) => v.videoWidth),
+    )
+    .toBeGreaterThan(0);
+  await page.locator("#settings-toggle").click();
+  await page.locator("#disconnect").click();
+  await expect
+    .poll(
+      async () => (await (await page.request.get("/api/status")).json()).busy,
+    )
+    .toBe(false);
+  await page.reload();
+  await expect(page.locator("#status")).toHaveText("Connected to laptop", {
+    timeout: 20000,
+  });
+  await page.locator("#settings-toggle").click();
+  await page.locator("#forget").click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("deskpad.remote")))
+    .toBe(null);
+});
+
+test("opt-in phone camera and microphone send media and stop capture on disconnect", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "Fake browser media devices");
+  await page.addInitScript(() => {
+    const original = navigator.mediaDevices.getUserMedia.bind(
+      navigator.mediaDevices,
+    );
+    (window as any).__captured = [];
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      const stream = await original(constraints);
+      (window as any).__captured.push(...stream.getTracks());
+      return stream;
+    };
+  });
+  await page.request.post("/test/media/allow");
+  await page.goto("/");
+  await page.getByLabel("Pairing code").fill("123456");
+  await page.getByRole("button", { name: "Connect to laptop" }).click();
+  await expect(page.locator("#status")).toHaveText("Connected to laptop", {
+    timeout: 20000,
+  });
+  await page.locator("#settings-toggle").click();
+  await page.getByLabel("Use phone camera", { exact: true }).check();
+  await page.getByLabel("Use phone microphone", { exact: true }).check();
+  await expect
+    .poll(
+      async () => await (await page.request.get("/test/media/events")).json(),
+    )
+    .toContain("video");
+  await expect
+    .poll(
+      async () => await (await page.request.get("/test/media/events")).json(),
+    )
+    .toContain("audio");
+  await expect(page.locator("#camera-preview")).toBeVisible();
+  await page.getByLabel("Use phone camera", { exact: true }).uncheck();
+  await expect(page.locator("#camera-preview")).toBeHidden();
+  await expect
+    .poll(
+      async () => await (await page.request.get("/test/media/events")).json(),
+    )
+    .toContain("closed:video");
+  await page.locator("#disconnect").click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as any).__captured.every(
+          (track: MediaStreamTrack) => track.readyState === "ended",
+        ),
+      ),
+    )
+    .toBe(true);
+  await expect(page.locator("#camera-preview")).toBeHidden();
+  await expect
+    .poll(
+      async () => await (await page.request.get("/test/media/events")).json(),
+    )
+    .toContain("closed:video");
 });

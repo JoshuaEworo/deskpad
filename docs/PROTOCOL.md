@@ -43,3 +43,43 @@ For each frame:
 4. Host captures the next fresh frame after the FPS pacing interval.
 
 The host does not capture/send the next frame before acknowledgement. No historical frame queue. Ack timeout closes video; the client reconnects the session. Closing control invalidates its associated video lease. Host and client apply bounded messages/buffers. Metadata bounds are native desktop coordinates; encoded dimensions may be smaller.
+
+## Protocol 2: WebRTC
+
+`POST /api/rtc` accepts `{sdp}` from an origin-checked, cookie-authenticated local
+phone and returns an answer. Remote negotiation is carried over the hosted
+signaling socket, with P-256 signatures covering exact UTF-8 JSON payload strings.
+Signatures are base64url IEEE P1363 r||s, not ASN.1 DER. Device public keys are
+P-256 JWKs without private fields. Both sides pin identities before accepting SDP.
+
+Phone requests include `kind`, random `nonce`, Unix `time`, and a signature plus
+public key. `pair` additionally carries the short-lived QR invitation. The host
+requires explicit approval. `connect` from an approved key yields a signed
+`config` containing ICE servers and a one-use, transport-bound challenge. `offer`
+must include that challenge; its signed `answer` must echo its request nonce.
+Old nonces, expired timestamps, changed signatures, and revoked keys are rejected.
+
+The phone creates an ordered `control` data channel and four transceivers in order:
+receive desktop video, receive laptop audio, send phone video, send phone audio.
+Existing input message schemas are unchanged. Control messages are bounded to
+16 KiB, with a 128-message engine queue and 64 KiB sender backlog cutoff. Desktop
+metadata and cursor updates travel over the channel; video has no per-frame ack.
+Heartbeats run every two seconds; eight seconds of silence releases the session.
+There is a single controller lease across WebSockets and RTC peers.
+
+`hello.media` lists host-permitted media features. Phone capture requires explicit
+user action, host opt-in, and trusted HTTPS. Disconnect stops local capture tracks.
+`media-status` reports native bridge failures rather than claiming a device exists.
+
+See `cloud/src/index.ts` for room routing. Host socket authorization uses an HTTPS
+Bearer credential. Phone authorization uses the `deskpad` subprotocol plus a
+`phone.<capability>` subprotocol, never URL query parameters. These credentials
+permit signaling, not PC control. TURN credentials are minted only for host-owned,
+verified rooms. The TURN API key never leaves the Worker.
+
+Media opt-in messages use `{type:"media",kind:"camera"|"microphone"|"speakers",enabled:boolean}`.
+The phone sends explicit opt-out before removing a camera/mic sender track. The
+host closes the corresponding sink even when no more media frames arrive. Incoming
+media queues are bounded (one video frame, two audio frames); stale frames are
+dropped rather than building an ever-growing delay. Laptop loopback capture starts
+only while both host permission and phone speaker opt-in are enabled.

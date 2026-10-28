@@ -105,12 +105,19 @@ class Release(Message):
     type: Literal["release"]
 
 
+class MediaState(Message):
+    type: Literal["media"]
+    kind: Literal["camera", "microphone", "speakers"]
+    enabled: bool = Field(strict=True)
+
+
 class Ping(Message):
     type: Literal["ping"]
     timestamp: float
 
 
 Input = Annotated[
-    Move | Button | Scroll | Text | Key | Shortcut | Release | Ping, Field(discriminator="type")
+    Move | Button | Scroll | Text | Key | Shortcut | Release | Ping | MediaState,
+    Field(discriminator="type"),
 ]
 INPUT_ADAPTER = TypeAdapter(Input)

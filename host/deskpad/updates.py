@@ -171,9 +171,15 @@ try {
             if (Get-Process -Id $ParentId -ErrorAction SilentlyContinue) { throw }
         }
     }
-    if ((Get-FileHash -LiteralPath $Installer -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Hash) {
-        throw 'Installer verification failed'
+    $stream = [System.IO.File]::OpenRead($Installer)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $actual = [System.BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $stream.Dispose()
+        $sha.Dispose()
     }
+    if ($actual -ne $Hash) { throw 'Installer verification failed' }
     $installArguments = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NOCLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /DIR="' + $AppDir + '" /LOG="' + (Join-Path (Split-Path $Installer) 'install.log') + '"'
     Write-Output 'Starting verified installer'
     $process = Start-Process -FilePath $Installer -ArgumentList $installArguments -PassThru -Wait
@@ -181,9 +187,12 @@ try {
     Start-Process -FilePath (Join-Path $AppDir 'Deskpad.exe')
     Set-Content -LiteralPath (Join-Path (Split-Path $Installer) 'installed.txt') -Value $Hash
 } catch {
-    $_ | Out-File -LiteralPath (Join-Path (Split-Path $Installer) 'update-error.txt')
-    Add-Type -AssemblyName PresentationFramework
-    [System.Windows.MessageBox]::Show('Deskpad update failed. Your settings and pairing are kept. Open Deskpad again and retry. Details are in ' + (Split-Path $Installer), 'Deskpad update') | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path (Split-Path $Installer) 'update-error.txt'), ($_ | Out-String))
+    if ($env:GITHUB_ACTIONS -ne 'true') {
+        Add-Type -AssemblyName PresentationFramework
+        [System.Windows.MessageBox]::Show('Deskpad update failed. Your settings and pairing are kept. Open Deskpad again and retry. Details are in ' + (Split-Path $Installer), 'Deskpad update') | Out-Null
+    }
+    exit 1
 }
 """,
         encoding="utf-8",
@@ -210,6 +219,8 @@ try {
                 "-AppDir",
                 str(Path(sys.executable).parent),
             ],
+            # Do not inherit PowerShell 7/custom module paths into Windows PowerShell 5.
+            env={**os.environ, "PSModulePath": str(powershell.parent / "Modules")},
             creationflags=subprocess.CREATE_NO_WINDOW,
             stdin=subprocess.DEVNULL,
             stdout=output,

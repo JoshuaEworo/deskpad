@@ -127,13 +127,16 @@ const connection = new Connection({
       ["phone-microphone", "microphone", allowed.microphone],
       ["phone-speaker", "speakers", allowed.speakers],
     ] as const) {
-      $<HTMLInputElement>(id).disabled = !value;
+      const secure = name === "speakers" || window.isSecureContext;
+      $<HTMLInputElement>(id).disabled = !value || !secure;
       const setup = allowed.setup?.[name];
-      const detail = value
-        ? setup?.detail || "Ready. Turn this on to start."
-        : setup && !setup.ready
-          ? `${setup.state} on laptop. ${setup.detail} Open Deskpad Settings on your laptop.`
-          : "Enable this feature in Deskpad Settings on your laptop and save.";
+      const detail = !secure
+        ? "Use Anywhere mode on your laptop and scan its secure QR link to enable phone camera and microphone."
+        : value
+          ? setup?.detail || "Ready. Turn this on to start."
+          : setup && !setup.ready
+            ? `${setup.state} on laptop. ${setup.detail} Open Deskpad Settings on your laptop.`
+            : "Enable this feature in Deskpad Settings on your laptop and save.";
       $(id).title = detail;
       $(`${id}-help`).textContent = detail;
     }

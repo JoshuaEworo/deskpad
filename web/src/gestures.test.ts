@@ -72,3 +72,21 @@ describe("trackpad gesture ownership", () => {
     ]);
   });
 });
+
+it("filters resting-finger noise but accumulates slow intentional travel", () => {
+  const { pad, events } = setup();
+  pad.down(1, 10, 10, 0);
+  for (const x of [10.1, 9.9, 10.15, 10.05]) pad.move(1, x, 10);
+  expect(events).toEqual([]);
+  for (const x of [10.2, 10.3, 10.4, 10.6]) pad.move(1, x, 10);
+  expect(events).toHaveLength(1);
+  expect(events[0].type).toBe("move");
+});
+it("does not turn a small cursor adjustment followed by hovering into a drag", () => {
+  const { pad, events } = setup();
+  pad.down(1, 0, 0, 0);
+  pad.move(1, 3, 0);
+  pad.hold(1000);
+  pad.up(1, 1200);
+  expect(events).toEqual([{ type: "move", dx: 12, dy: 0 }]);
+});

@@ -104,3 +104,11 @@ Python environment to generate actual pairing QR rasters and decodes them with t
 same jsQR package used in the phone scanner, at 100/125/150/175/200% display scales.
 The signed remote browser test simulates host shutdown, phone refresh while offline,
 and host return with the same approved identity; it then tests End session and revoke.
+
+
+Display and motion regression checks use virtual dual-display topology (including
+negative coordinates), simulated hotplug, strict protocol validation, and mocked
+Windows cursor writes. Browser coverage switches displays through both legacy
+and RTC, disables/re-enables follow, and verifies navigation stays reachable on a
+short settings viewport. These checks do not substitute for physical monitor,
+mixed-DPI or Windows hover acceptance.

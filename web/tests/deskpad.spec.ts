@@ -4,9 +4,10 @@ test.beforeEach(async ({ page }) => {
   await page.request.post("/test/reset");
 });
 
-async function pair(page: Page) {
-  await page.addInitScript(() =>
-    localStorage.setItem("deskpad.legacyVideo", "true"),
+async function pair(page: Page, legacy = true) {
+  await page.addInitScript(
+    (enabled) => localStorage.setItem("deskpad.legacyVideo", String(enabled)),
+    legacy,
   );
   await page.goto("/");
   await page.getByLabel("Pairing code").fill("123456");
@@ -14,9 +15,13 @@ async function pair(page: Page) {
   await expect(page.locator("#status")).toHaveText("Connected to laptop");
   await expect
     .poll(() =>
-      page
-        .locator("#desktop")
-        .evaluate((image: HTMLImageElement) => image.naturalWidth),
+      legacy
+        ? page
+            .locator("#desktop")
+            .evaluate((image: HTMLImageElement) => image.naturalWidth)
+        : page
+            .locator("#desktop-video")
+            .evaluate((video: HTMLVideoElement) => video.videoWidth),
     )
     .toBeGreaterThan(0);
 }
@@ -94,6 +99,7 @@ test("keyboard-first controls keep the desktop full width as the visible viewpor
   await expect(
     page.getByRole("button", { name: "ctrl", exact: true }),
   ).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("tab", { name: "Session", exact: true }).click();
   await page.getByRole("button", { name: "End session", exact: true }).click();
   await expect(page.locator("#status")).toHaveText("Disconnected");
   await expect(
@@ -104,8 +110,10 @@ test("keyboard-first controls keep the desktop full width as the visible viewpor
     .click();
   await expect(page.locator("#status")).toHaveText("Connected to laptop");
   await page.getByRole("button", { name: "Open settings" }).click();
-  await page.getByRole("button", { name: "Forget this phone" }).click();
-  await expect(page.getByLabel("Pairing code")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Forget this phone" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Close settings" }).click();
   expect(errors).toEqual([]);
 });
 
@@ -147,7 +155,7 @@ test("optional mouse controls and a resizable trackpad remain available without 
   await expect
     .poll(async () => (await page.locator("#trackpad").boundingBox())!.height)
     .toBeGreaterThan(before + 30);
-  await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByRole("button", { name: "Show quick actions" }).click();
   await page.getByRole("button", { name: "Drag lock", exact: true }).click();
   await expect(page.locator("#settings")).toBeHidden();
   const baseline = (await events(page)).length;
@@ -245,7 +253,7 @@ test("two-finger right click retains keyboard focus; pinch scale survives keyboa
   await expect
     .poll(async () => (await page.locator("#picture").boundingBox())!.width)
     .toBeCloseTo(zoomed, 0);
-  await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByRole("button", { name: "Show quick actions" }).click();
   await page.getByRole("button", { name: "Fit width", exact: true }).click();
   await expect
     .poll(async () => (await page.locator("#picture").boundingBox())!.width)
@@ -372,7 +380,7 @@ test("landscape docks controls, isolates Mouse and View gestures, and restores p
   ).toEqual([]);
   const beforeCollapse = (await page.locator("#screen").boundingBox())!.height;
   await page.getByRole("button", { name: "Collapse hotkeys" }).click();
-  await expect(page.locator(".key-strip")).toBeHidden();
+  await expect(page.locator("#desktop-keys")).toBeHidden();
   await expect(page.locator("#rail-brand")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "View", exact: true }),
@@ -389,7 +397,7 @@ test("landscape docks controls, isolates Mouse and View gestures, and restores p
     path: `test-results/landscape-collapsed-${test.info().project.name}.png`,
   });
   await page.getByRole("button", { name: "Expand hotkeys" }).click();
-  await expect(page.locator(".key-strip")).toBeVisible();
+  await expect(page.locator("#desktop-keys")).toBeVisible();
   await page.getByRole("button", { name: "Open keyboard" }).click();
   await expect(page.locator("#typing")).toBeFocused();
   await page.getByRole("button", { name: "Hide keyboard" }).click();
@@ -439,6 +447,7 @@ test("WebRTC desktop carries video, ordered input, cursor updates, and releases 
     .poll(async () => JSON.stringify(await events(page)))
     .toContain("hello");
   await page.locator("#settings-toggle").click();
+  await page.getByRole("tab", { name: "Session", exact: true }).click();
   await page.locator("#disconnect").click();
   await expect
     .poll(
@@ -491,6 +500,7 @@ test("remote QR pins identity, requires matching laptop approval, then streams o
     )
     .toBeGreaterThan(0);
   await page.locator("#settings-toggle").click();
+  await page.getByRole("tab", { name: "Session", exact: true }).click();
   await page.locator("#disconnect").click();
   await expect
     .poll(
@@ -541,6 +551,7 @@ test("opt-in phone camera and microphone send media and stop capture on disconne
     timeout: 20000,
   });
   await page.locator("#settings-toggle").click();
+  await page.getByRole("tab", { name: "Media", exact: true }).click();
   await page.getByLabel("Use phone camera", { exact: true }).check();
   await page.getByLabel("Use phone microphone", { exact: true }).check();
   await expect
@@ -561,6 +572,7 @@ test("opt-in phone camera and microphone send media and stop capture on disconne
       async () => await (await page.request.get("/test/media/events")).json(),
     )
     .toContain("closed:video");
+  await page.getByRole("tab", { name: "Session", exact: true }).click();
   await page.locator("#disconnect").click();
   await expect
     .poll(() =>
@@ -578,3 +590,82 @@ test("opt-in phone camera and microphone send media and stop capture on disconne
     )
     .toContain("closed:video");
 });
+
+test("settings is a safe-area page with independently scrolling tabs and reachable back controls", async ({
+  page,
+}) => {
+  await pair(page);
+  await page.getByRole("button", { name: "Open settings" }).click();
+  await expect(
+    page.getByRole("tab", { name: "Pointer", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.locator("#settings #reset-view,#settings #drag-lock,#forget"),
+  ).toHaveCount(0);
+  await expect(page.locator("#workspace")).toHaveAttribute("inert", "");
+  await page.screenshot({ path: "/tmp/deskpad-settings-pointer.png" });
+  await page.getByRole("tab", { name: "Display", exact: true }).click();
+  await expect(page.getByLabel("Follow mouse across displays")).toBeDisabled();
+  await page.getByRole("tab", { name: "Media", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 360 });
+  await page.locator(".settings-body").evaluate((body) => {
+    body.scrollTop = body.scrollHeight;
+  });
+  for (const selector of ["#settings-close", "#settings-done"]) {
+    const box = (await page.locator(selector).boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(360);
+    expect(
+      await page.locator(selector).evaluate((button) => {
+        const box = button.getBoundingClientRect();
+        return (
+          document
+            .elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+            ?.closest("button") === button
+        );
+      }),
+    ).toBe(true);
+  }
+  await page.getByRole("button", { name: "Back to controls" }).click();
+  await expect(page.locator("#settings")).toBeHidden();
+  await expect(page.locator("#workspace")).not.toHaveAttribute("inert");
+});
+
+for (const transport of ["legacy", "rtc"])
+  test(`display selector and cursor-follow work over ${transport}`, async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(
+      transport === "rtc" && browserName !== "chromium",
+      "RTC media acceptance runs in Chromium",
+    );
+    await page.request.post("/test/displays");
+    await pair(page, transport === "legacy");
+    const monitor = page.getByRole("combobox", { name: "Switch display" });
+    await expect(monitor).toBeVisible();
+    await expect(monitor).toHaveValue("1");
+    await monitor.selectOption("2");
+    await expect(monitor).toHaveValue("2");
+    await page.getByRole("button", { name: "Open settings" }).click();
+    await page.getByRole("tab", { name: "Display", exact: true }).click();
+    await expect(page.locator("#display-details")).toContainText(
+      "2 displays detected",
+    );
+    await page.getByLabel("Follow mouse across displays").uncheck();
+    await page.getByRole("button", { name: "Back to controls" }).click();
+    await page.request.post("/test/cursor", { data: { x: 100, y: 100 } });
+    await page.waitForTimeout(700); // crosses the explicit display handoff grace period
+    await expect(monitor).toHaveValue("2");
+    await page.getByRole("button", { name: "Open settings" }).click();
+    await page.getByRole("tab", { name: "Display", exact: true }).click();
+    await page.screenshot({ path: "/tmp/deskpad-settings-display.png" });
+    await page.getByLabel("Follow mouse across displays").check();
+    await page.getByRole("button", { name: "Back to controls" }).click();
+    await expect(monitor).toHaveValue("1");
+    await page.getByRole("button", { name: "Show quick actions" }).click();
+    await expect(
+      page.getByRole("button", { name: "Drag lock", exact: true }),
+    ).toBeVisible();
+    await page.screenshot({ path: "/tmp/deskpad-toolbar-displays.png" });
+  });

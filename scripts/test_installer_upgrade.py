@@ -11,7 +11,7 @@ from pathlib import Path
 
 import httpx
 from deskpad.identity import Identity, key_id
-from deskpad.settings import Settings
+from deskpad.settings import Settings, atomic_json
 from deskpad.updates import (
     REPOSITORY,
     VERSION,
@@ -26,7 +26,7 @@ def run():
     if os.name != "nt":
         raise RuntimeError("Installer acceptance requires Windows")
     # The previous public release is the baseline for the first updater upgrade.
-    baseline_url = f"https://github.com/{REPOSITORY}/releases/download/v0.2.0-alpha.5/update.json"
+    baseline_url = f"https://github.com/{REPOSITORY}/releases/download/v0.2.0-alpha.6/update.json"
     root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory(prefix="deskpad-upgrade-") as temporary:
         stage = Path(temporary)
@@ -54,9 +54,10 @@ def run():
             timeout=180,
         )
         profile = stage / "profile/Deskpad"
-        Settings(name="Upgrade acceptance", remote=False, check_updates=False).save(
-            profile / "settings.json"
-        )
+        # Seed a real older-version profile, without fields introduced by this
+        # build. The baseline executable intentionally rejects unknown settings.
+        initial = Settings(name="Upgrade acceptance", remote=False, check_updates=False)
+        atomic_json(profile / "settings.json", initial.model_dump(exclude={"follow_cursor"}))
         identity = Identity(profile)
         phone = Identity(stage / "test-phone")
         identity.approve(key_id(phone.public), phone.public, "Acceptance phone")

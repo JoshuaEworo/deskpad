@@ -431,38 +431,11 @@ h1 {
   color: #6d8273;
   margin-top: 30px;
 }
-.settings {
-  position: absolute;
-  z-index: 10;
-  bottom: 8px;
-  left: 8px;
-  right: 8px;
-  margin: 0 auto;
-  max-width: 480px;
-  max-height: calc(100% - 16px);
-  padding: 20px;
-  background: #202d24;
-  border: 1px solid #455e4d;
-  border-radius: 16px;
-  box-shadow: 0 0 0 100vmax #0009;
-  overflow-y: auto;
-}
-.settings-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
 h2 {
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.6px;
   margin: 0;
-}
-.settings-header button {
-  width: 38px;
-  height: 38px;
-  font-size: 18px;
 }
 .connection-details {
   display: flex;
@@ -475,22 +448,6 @@ h2 {
 #metrics {
   font-size: 9px;
   color: var(--muted);
-}
-.menu-actions {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 22px;
-}
-.menu-actions button {
-  flex: 1;
-  border: 1px solid #516a58;
-  border-radius: 7px;
-  min-height: 40px;
-  font-size: 12px;
-}
-.menu-actions [aria-pressed="true"] {
-  background: var(--mint);
-  color: #17241b;
 }
 .settings label {
   display: block;
@@ -512,33 +469,11 @@ h2 {
   accent-color: var(--mint);
   margin-right: 10px;
 }
-.shortcuts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.shortcuts button {
-  padding: 10px 12px;
-  border-radius: 7px;
-  background: #314538;
-  font-size: 11px;
-}
 .settings-help {
   font-size: 11px;
   color: #acbdaf;
   line-height: 1.7;
   margin: 18px 0;
-}
-.settings > button {
-  display: block;
-  width: 100%;
-  border-top: 1px solid #425a49;
-  min-height: 42px;
-  text-align: left;
-  font-size: 12px;
-}
-#forget {
-  color: #e9bbb0;
 }
 dialog {
   background: #202d24;
@@ -872,4 +807,226 @@ dialog textarea {
     grid-template-columns: 1fr;
     gap: 12px;
   }
+}
+
+/* A full settings page, with reachable navigation independent of panel scroll. */
+.settings {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #101713;
+  padding: max(12px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  justify-content: flex-start;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+.settings-header button {
+  font-size: 18px;
+  width: 44px;
+  height: 44px;
+  background: #1d2c22;
+  border-radius: 12px;
+}
+.settings-brand {
+  color: var(--muted);
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+}
+.settings-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid #2e4134;
+  margin: 0 0 4px;
+}
+.settings-tabs button {
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 3px;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+.settings-tabs [aria-selected="true"] {
+  border-bottom-color: var(--mint);
+  color: var(--mint);
+}
+.settings-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 4px;
+  overscroll-behavior: contain;
+}
+.settings-body > section {
+  max-width: 560px;
+  margin: 0 auto;
+}
+.settings h3 {
+  font-size: 18px;
+  margin: 0 0 28px;
+  letter-spacing: -0.3px;
+}
+.settings-footer {
+  flex-shrink: 0;
+  padding-top: 12px;
+  border-top: 1px solid #2e4134;
+}
+.settings-footer button {
+  min-height: 46px;
+  width: 100%;
+  background: #22392b;
+  border-radius: 12px;
+  color: var(--mint);
+}
+.settings .check-row {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+}
+.settings .check-row input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.settings-help,
+.gesture-help {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.gesture-help summary {
+  padding: 12px 0;
+  cursor: pointer;
+}
+.settings .session-action {
+  display: block;
+  width: 100%;
+  text-align: left;
+  min-height: 52px;
+  padding: 12px;
+  border: 1px solid #354b3b;
+  border-radius: 10px;
+  margin: 12px 0;
+}
+.settings .connection-details {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+}
+.settings-icon {
+  width: 20px;
+  height: 20px;
+  fill: #101713;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+.key-strip .shortcuts {
+  display: contents;
+}
+.key-strip [aria-pressed="true"] {
+  color: var(--mint);
+  background: #2b4c36;
+}
+.display-control {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 100%;
+  padding: 0 3px;
+  gap: 3px;
+  border-left: 1px solid #34493b;
+}
+.display-control svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: var(--mint);
+  stroke-width: 1.5;
+}
+.display-control select {
+  width: 42px;
+  min-height: 34px;
+  padding: 0 2px;
+  border: 0;
+  color: #c0d4c6;
+  background: #17221b;
+  font: inherit;
+  font-size: 12px;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .settings {
+    padding-top: max(4px, env(safe-area-inset-top));
+  }
+  .settings-header {
+    margin-bottom: 2px;
+  }
+  .settings-body {
+    padding-top: 14px;
+  }
+  .settings-footer {
+    padding-top: 4px;
+  }
+  .settings-footer button {
+    min-height: 36px;
+  }
+}
+.actions-toggle {
+  width: 32px;
+  flex-shrink: 0;
+  height: 100%;
+  padding: 7px;
+  border-right: 1px solid #34493b;
+}
+.actions-toggle svg {
+  width: 17px;
+  height: 17px;
+  stroke: #9cb5a4;
+  fill: none;
+  stroke-width: 1.4;
+}
+.actions-toggle[aria-expanded="true"] {
+  background: #2b4935;
+}
+.actions-toggle[aria-expanded="true"] svg {
+  stroke: var(--mint);
+}
+.quick-actions {
+  gap: 5px;
+}
+.landscape.dock-collapsed .actions-toggle {
+  display: none;
+}
+.settings .check-row {
+  gap: 10px;
+}
+.settings .check-row input {
+  margin: 0;
+}
+.settings #metrics {
+  font-size: 11px;
+}
+.quick-actions .shortcuts button {
+  background: none;
+  border-radius: 0;
+  padding: 0 12px;
+  font-size: 12px;
 }

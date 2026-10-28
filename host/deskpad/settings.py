@@ -32,6 +32,7 @@ class Settings(BaseModel):
     # A release may supply a hosted URL. No pretend live service is hard-coded.
     service_url: str = ""
     monitor: int = Field(default=1, ge=1, le=32)
+    follow_cursor: bool = True
     fps: int = Field(default=30, ge=5, le=60)
     width: int = Field(default=1440, ge=640, le=3840)
     quality: int = Field(default=75, ge=40, le=90)

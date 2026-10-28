@@ -82,25 +82,34 @@ keyboard. There is no offline service worker.
 | Move pointer | One finger on trackpad |
 | Left click | Tap, or left mouse button |
 | Right click | Two-finger tap, or right mouse button |
-| Scroll | Two fingers, or enable the side scroll wheel in the menu and drag it with one finger; reverse direction in settings |
+| Scroll | Two fingers, or enable the side scroll wheel in Settings → Pointer and drag it with one finger; reverse direction in settings |
 | Drag | Hold still briefly, then move; double-tap and drag also works |
-| Persistent drag | Menu → Drag lock; opening the menu releases held input |
+| Persistent drag | Control bar → Quick actions → Drag lock; opening Settings releases held input |
 | Zoom desktop | Portrait: pinch the screen. Landscape: select View, then pinch around the part you want to enlarge |
 | Pan desktop | Portrait: drag the screen while zoomed. Landscape: select View, then drag |
 | Type | Keyboard stays focused while using the trackpad/desktop keys; bottom-right button shows/hides it |
 | Shortcut | Select Ctrl/Alt/Shift/Win, then a letter or desktop key; modifiers release afterward |
-| Paste phone text | Menu → Send text; paste or dictate, then send |
-| Paste laptop clipboard | Menu → Paste on PC |
+| Paste phone text | Control bar → Quick actions → Send text; paste or dictate, then send |
+| Paste laptop clipboard | Control bar → Quick actions → Paste on PC |
 
 Portrait keeps a separate trackpad beneath the screen. Landscape hides that trackpad and fits the entire desktop above a docked control bar; the bar never overlays the image. In **Mouse** mode, sliding over the desktop moves the real Windows cursor, and tapping clicks at the cursor position (not at the finger position). Two-finger tap right-clicks, two fingers scroll, and hold/double-tap drag works as on the portrait pad. In **View** mode, screen gestures only pan/zoom the viewer and send no mouse input. Switching modes releases held inputs.
 
 The landscape bar collapses to a shorter rail with small branding, Mouse/View controls, a keyboard button, and an expand button. Collapse state is remembered. Landscape starts with the keyboard tucked away; open it explicitly when needed. Rotating back restores the portrait view and trackpad preferences, and attempts to restore keyboard focus if it was previously open. Safari may require a keyboard tap after rotation. Each orientation keeps its own in-session zoom/pan state.
 
+The phone's Settings page has Pointer, Display, Media and Session tabs. Its back
+controls stay visible while the active panel scrolls. Use the grid icon on the
+control bar to switch between desktop keys and quick actions; those actions do
+not live in Settings. Manage paired-phone access from Devices on the laptop.
+
+Displays are detected automatically. With multiple displays, a selector appears
+beside the keyboard button. Selecting a display moves an off-screen cursor into
+that display once; otherwise Deskpad only observes the physical cursor. Settings
+→ Display can disable automatic cursor-follow to keep viewing the selected screen.
+
 ## Camera and audio
 
-Enable permissions in desktop Settings, then toggle each feature in the phone
-menu. Phone camera/mic access requires a trusted HTTPS origin and browser consent.
-Front/back camera switching and an optional preview are available in the menu.
+Enable permissions in desktop Settings, then toggle each feature in phone Settings → Media. Phone camera/mic access requires a trusted HTTPS origin and browser consent.
+Front/back camera switching and an optional preview are available in Settings → Media.
 Disconnecting stops phone capture. Audio/video queues are bounded so slow sinks
 do not accumulate historical frames.
 

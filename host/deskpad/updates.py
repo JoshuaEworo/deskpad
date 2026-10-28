@@ -163,7 +163,12 @@ def launch_installer(installer, release):
 $ErrorActionPreference = 'Stop'
 try {
     if (Get-Process -Id $ParentId -ErrorAction SilentlyContinue) {
-        Wait-Process -Id $ParentId -Timeout 60 -ErrorAction Stop
+        try {
+            Wait-Process -Id $ParentId -Timeout 60 -ErrorAction Stop
+        } catch {
+            # The parent may exit between Get-Process and Wait-Process.
+            if (Get-Process -Id $ParentId -ErrorAction SilentlyContinue) { throw }
+        }
     }
     if ((Get-FileHash -LiteralPath $Installer -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Hash) {
         throw 'Installer verification failed'

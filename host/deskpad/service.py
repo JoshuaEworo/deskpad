@@ -31,6 +31,11 @@ class Service:
 
     def media_state(self, kind, state, error=""):
         with self._lock:
+            previous = self._state["media_activity"].get(kind, {})
+            # The phone stops capture after a bridge error. Keep its explanation
+            # visible until another start attempt, rather than flashing it away.
+            if state == "Idle" and previous.get("error"):
+                return
             self._state["media_activity"][kind] = {"state": state, "error": error}
 
     def snapshot(self):

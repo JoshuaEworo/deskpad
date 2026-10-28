@@ -472,7 +472,7 @@ def build_window(settings, service, directory, engine):
                     f"In Zoom on this laptop, choose {device} as your camera. Deskpad supplies the picture directly; leave OBS's Start Virtual Camera off.",
                 ],
                 "microphone": [
-                    "One-time setup: install VB-CABLE from VB-Audio. Follow its installer instructions and restart Windows if requested. Return here and Refresh devices.",
+                    "One-time setup: install VB-CABLE from VB-Audio and follow its restart instructions. Reopen Deskpad after installation so Windows can report the new audio device.",
                     "Choose the detected virtual cable in Deskpad, enable Use phone as a microphone, and Save settings. Ordinary speakers are excluded from this list.",
                     "Connect your phone. Open its Deskpad menu and turn on Use phone microphone. Allow microphone access when your phone asks.",
                     "In Zoom on this laptop, choose CABLE Output (VB-Audio Virtual Cable) as your microphone. For CABLE-A/B, choose the matching Output.",

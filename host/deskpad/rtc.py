@@ -325,9 +325,15 @@ def desktop_track(hub, peer):
             now = time.monotonic()
             await asyncio.sleep(max(0, self.next_frame - now))
             self.next_frame = time.monotonic() + 1 / hub.settings.fps
-            image, bounds = await asyncio.get_running_loop().run_in_executor(
-                hub.executor, hub.capture.image
-            )
+            try:
+                image, bounds = await asyncio.get_running_loop().run_in_executor(
+                    hub.executor, hub.capture.image
+                )
+            except Exception:
+                peer.send({"type": "error", "message": "Display unavailable. Reconnecting…"})
+                # Do not await pc.close from its sender's own frame task.
+                asyncio.create_task(peer.close())
+                raise
             frame = VideoFrame.from_image(image)
             frame.pts = int((time.monotonic() - self.start) * 90000)
             frame.time_base = Fraction(1, 90000)

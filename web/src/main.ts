@@ -52,13 +52,14 @@ function updateDisplays(metadata: Frame) {
   if (signature !== displaySignature) {
     displaySignature = signature;
     selector.replaceChildren(
-      ...displays.map(
-        (display) =>
-          new Option(
-            `${display.id} · ${display.width} × ${display.height}`,
-            String(display.id),
-          ),
-      ),
+      ...displays.map((display) => {
+        const option = new Option(String(display.id), String(display.id));
+        option.setAttribute(
+          "aria-label",
+          `${display.name}, ${display.width} by ${display.height}`,
+        );
+        return option;
+      }),
     );
   }
   if (activeDisplay !== undefined && activeDisplay !== metadata.monitor)

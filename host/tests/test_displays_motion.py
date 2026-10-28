@@ -110,3 +110,67 @@ def test_idle_native_input_never_sets_cursor_and_fractional_motion_is_preserved(
 def test_display_requests_are_bounded_and_strict(value):
     with pytest.raises(ValidationError):
         INPUT_ADAPTER.validate_python({"type": "display", "monitor": value})
+
+
+def test_capture_reenumerates_when_display_disappears_mid_grab(monkeypatch):
+    import mss
+    from PIL import Image
+
+    calls = []
+
+    class FakeMss:
+        def __init__(self, left, broken):
+            self.broken = broken
+            self.monitors = [{}, {"left": left, "top": 0, "width": 2, "height": 2}]
+
+        def close(self):
+            calls.append("closed")
+
+        def grab(self, bounds):
+            calls.append(bounds["left"])
+            if self.broken:
+                raise RuntimeError("display removed")
+            return SimpleNamespace(size=(2, 2), bgra=Image.new("RGBA", (2, 2)).tobytes())
+
+    instances = iter([FakeMss(0, True), FakeMss(10, False)])
+    monkeypatch.setattr(mss, "mss", lambda: next(instances))
+    # Keep this regression independent of a Windows GPU capture backend.
+    capture = ScreenCapture()
+    capture._gpu_failed = True
+    capture.cursor = lambda: (10, 1)
+    image, bounds = capture.image()
+    assert image.size == (2, 2) and bounds["left"] == 10
+    assert calls == [0, "closed", 10]
+    capture.close()
+
+
+def test_terminal_capture_error_closes_peer_instead_of_leaving_blank_live_session():
+    pytest.importorskip("aiortc")
+    from deskpad.rtc import desktop_track
+
+    async def scenario():
+        class BrokenCapture:
+            def image(self):
+                raise RuntimeError("no displays")
+
+        class FakePeer:
+            closed = False
+            messages = []
+
+            def send(self, message):
+                self.messages.append(message)
+
+            async def close(self):
+                self.closed = True
+
+        with ThreadPoolExecutor(1) as worker:
+            hub = SimpleNamespace(settings=Settings(), executor=worker, capture=BrokenCapture())
+            peer = FakePeer()
+            track = desktop_track(hub, peer)
+            with pytest.raises(RuntimeError):
+                await track.recv()
+            await asyncio.sleep(0)
+            assert peer.closed and peer.messages[-1]["type"] == "error"
+            track.stop()
+
+    asyncio.run(scenario())

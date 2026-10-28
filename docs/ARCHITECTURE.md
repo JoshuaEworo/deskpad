@@ -117,3 +117,8 @@ emitted position, allowing slow intentional travel to accumulate. A long-press
 can begin a drag only if no cursor movement has been emitted since contact began.
 Heartbeat and video metadata only read cursor position. Browser overlay updates
 never force a saved absolute cursor position onto Windows.
+
+If a display disappears during a grab, capture refreshes topology and retries a
+surviving output on the same worker. An unrecoverable RTC capture error closes the
+peer from a separate task, so the phone can reconnect instead of retaining a blank
+live connection. The frame sender never awaits its own shutdown.

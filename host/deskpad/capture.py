@@ -127,7 +127,14 @@ class ScreenCapture:
                         "GPU capture unavailable; using compatible capture"
                     )
             if image is None:
-                shot = self._mss.grab(bounds)
+                try:
+                    shot = self._mss.grab(bounds)
+                except Exception:
+                    # A display can disappear between enumeration and capture.
+                    # Refresh on this same worker and retry the surviving output.
+                    self._display_refresh = 0
+                    bounds = self.active_display()
+                    shot = self._mss.grab(bounds)
                 image = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
         image.thumbnail((self.width, self.width * 2))
         return image, bounds

@@ -162,6 +162,7 @@ def launch_installer(installer, release):
         """param([string]$Installer, [string]$Hash, [int]$ParentId, [string]$AppDir)
 $ErrorActionPreference = 'Stop'
 try {
+    Write-Output 'Waiting for Deskpad to exit'
     if (Get-Process -Id $ParentId -ErrorAction SilentlyContinue) {
         try {
             Wait-Process -Id $ParentId -Timeout 60 -ErrorAction Stop
@@ -173,8 +174,9 @@ try {
     if ((Get-FileHash -LiteralPath $Installer -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Hash) {
         throw 'Installer verification failed'
     }
-    $args = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NOCLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /DIR="' + $AppDir + '" /LOG="' + (Join-Path (Split-Path $Installer) 'install.log') + '"'
-    $process = Start-Process -FilePath $Installer -ArgumentList $args -PassThru -Wait
+    $installArguments = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NOCLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /DIR="' + $AppDir + '" /LOG="' + (Join-Path (Split-Path $Installer) 'install.log') + '"'
+    Write-Output 'Starting verified installer'
+    $process = Start-Process -FilePath $Installer -ArgumentList $installArguments -PassThru -Wait
     if ($process.ExitCode -ne 0) { throw ('Installer failed: ' + $process.ExitCode) }
     Start-Process -FilePath (Join-Path $AppDir 'Deskpad.exe')
     Set-Content -LiteralPath (Join-Path (Split-Path $Installer) 'installed.txt') -Value $Hash
@@ -187,24 +189,30 @@ try {
         encoding="utf-8",
     )
     powershell = Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
-    subprocess.Popen(
-        [
-            str(powershell),
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            str(helper),
-            "-Installer",
-            str(installer),
-            "-Hash",
-            release.sha256,
-            "-ParentId",
-            str(os.getpid()),
-            "-AppDir",
-            str(Path(sys.executable).parent),
-        ],
-        creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS,
-        close_fds=True,
-    )
+    # Windows children survive parent exit without DETACHED_PROCESS. Give the
+    # console-hosted helper valid handles even when Deskpad itself is windowed.
+    with installer.with_name("update-runner.log").open("ab") as output:
+        subprocess.Popen(
+            [
+                str(powershell),
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(helper),
+                "-Installer",
+                str(installer),
+                "-Hash",
+                release.sha256,
+                "-ParentId",
+                str(os.getpid()),
+                "-AppDir",
+                str(Path(sys.executable).parent),
+            ],
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            stdin=subprocess.DEVNULL,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+        )

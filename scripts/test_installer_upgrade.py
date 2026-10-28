@@ -38,6 +38,7 @@ def run():
             old = verify_release(response.json(), update_key(), current="0.0.0")
         if old is None:
             raise RuntimeError("No valid baseline installer")
+        print("Downloading and installing verified baseline", flush=True)
         old_installer = download_update(old, stage / "baseline")
         subprocess.run(
             [
@@ -60,6 +61,7 @@ def run():
         phone = Identity(stage / "test-phone")
         identity.approve(key_id(phone.public), phone.public, "Acceptance phone")
         before = (identity.public, identity.owner, identity.gate, identity.devices)
+        print("Rendering baseline with saved settings and pairing", flush=True)
         # Render the old installed app, proving that it reads the seeded profile.
         subprocess.run(
             [str(app_dir / "Deskpad.exe"), "--demo", "--screenshot", str(stage / "before.png")],
@@ -69,7 +71,11 @@ def run():
         )
         if not (stage / "before.png").exists():
             raise RuntimeError("Baseline app did not render")
-        installer = root / "dist/Deskpad-Setup-Windows-x64.exe"
+        installer = (
+            old_installer
+            if "--handoff-only" in sys.argv
+            else root / "dist/Deskpad-Setup-Windows-x64.exe"
+        )
         release = Release(
             VERSION,
             "",
@@ -85,6 +91,7 @@ def run():
 
         shutil.copyfile(installer, staged_installer)
         code = "import sys; from pathlib import Path; from deskpad.updates import Release, launch_installer; sys.frozen=True; sys.executable=sys.argv[1]; launch_installer(Path(sys.argv[2]), Release(**__import__('json').loads(sys.argv[3])))"
+        print("Starting updater helper from disposable parent", flush=True)
         subprocess.run(
             [
                 sys.executable,
@@ -103,10 +110,22 @@ def run():
         while time.monotonic() < deadline and not marker.exists():
             error = staged_installer.with_name("update-error.txt")
             if error.exists():
-                raise RuntimeError("Updater helper reported an installation failure")
+                raise RuntimeError(
+                    "Updater helper reported an installation failure: "
+                    + error.read_text(errors="replace")
+                )
             time.sleep(1)
-        if not marker.exists() or marker.read_text().strip() != release.sha256:
-            raise RuntimeError("Updater did not report a verified successful install")
+        if not marker.exists() or marker.read_text(encoding="utf-8-sig").strip() != release.sha256:
+            runner = staged_installer.with_name("update-runner.log")
+            detail = (
+                runner.read_text(errors="replace")
+                if runner.exists()
+                else "No runner log was created"
+            )
+            raise RuntimeError(
+                "Updater did not report a verified successful install: " + detail[-6000:]
+            )
+        print("Updater installed and restarted the app; checking persistence", flush=True)
         loaded = Identity(profile)
         assert (loaded.public, loaded.owner, loaded.gate, loaded.devices) == before
         assert Settings.load(profile / "settings.json").name == "Upgrade acceptance"

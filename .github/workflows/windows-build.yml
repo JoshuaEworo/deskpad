@@ -8,6 +8,16 @@ on:
 permissions:
   contents: read
 jobs:
+  handoff:
+    name: Update handoff
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . -c requirements.lock
+      - run: python scripts/test_installer_upgrade.py --handoff-only
   build:
     runs-on: windows-latest
     steps:

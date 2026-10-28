@@ -52,6 +52,7 @@ def create_app(
     capture = ScreenCapture(demo, monitor, width, quality)
     executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="deskpad-capture")
     input_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="deskpad-input")
+    setup_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="deskpad-media-setup")
     lease = {"id": None, "token": None, "video": None}
 
     from .rtc import RtcHub
@@ -136,7 +137,7 @@ def create_app(
             return
         service.update(media_scanning=True)
         try:
-            result = await asyncio.get_running_loop().run_in_executor(executor, inspect_media)
+            result = await asyncio.get_running_loop().run_in_executor(setup_executor, inspect_media)
             service.update(media_setup=result)
         finally:
             service.update(media_scanning=False)
@@ -163,6 +164,7 @@ def create_app(
         await asyncio.get_running_loop().run_in_executor(executor, capture.close)
         executor.shutdown(wait=True)
         input_executor.shutdown(wait=True)
+        setup_executor.shutdown(wait=True)
 
     app = FastAPI(
         title="Deskpad", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan

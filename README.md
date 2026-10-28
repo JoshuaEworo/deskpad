@@ -2,96 +2,75 @@
 
 **Your desktop above. Your controls below.**
 
-A free, local-first remote desktop for a Windows laptop and an iPhone. Hold your phone upright: your existing desktop stays at the top, a dedicated trackpad sits underneath, and the phone keyboard opens at the bottom.
+Deskpad connects a Windows laptop to your phone. View the desktop at the top,
+move its cursor with a trackpad, and type with the phone’s keyboard. It is free,
+open source, and designed around a phone held comfortably in your hands.
 
-**Early alpha, not a verified Windows/iPhone release.** The host protocol and browser UI have automated tests. Real Windows screen capture/input and the physical iPhone keyboard still require the acceptance checks in [docs/TESTING.md](docs/TESTING.md). Demo mode is a synthetic screen and never controls your computer.
+**0.2 is a development alpha.** Desktop UI and WebRTC work in automated tests;
+this is not a verified public remote-access or Zoom-device release. See the
+[remaining release gates](docs/NEXT-RELEASE.md).
 
-## Desktop / remote-access work (0.2 alpha)
+## What works in the source implementation
 
-The repository now includes a styled PySide6 desktop window, tray controls, device
-revocation, launch-at-login, keep-awake, and per-user installer build. The existing
-phone interface is retained. `start.ps1` now opens the desktop app; use `-Headless`
-for the original CLI. Install `[desktop,media]` for the complete source build.
+- Styled Windows desktop companion with QR pairing, system tray, pause/disconnect,
+  approved-device revocation, optional launch at login and keep-awake.
+- Existing portrait phone UI, keyboard-first controls, focal pinch zoom, optional
+  scroll wheel, and landscape Mouse/View modes with a docked, collapsible hotkey bar.
+- WebRTC desktop video, cursor updates, bounded ordered input, and reconnect.
+  JPEG/WebSocket compatibility transport remains available.
+- Cloudflare signaling-service source with pinned device keys, signed negotiation,
+  explicit laptop approval, replay protection, verified enrollment, and TURN fallback.
+- Opt-in phone camera/mic transport and laptop audio playback. Native adapters use
+  **installed virtual camera/audio devices**, not bundled Deskpad devices.
+- Windows executable/installer build and CI smoke test for desktop render/shutdown.
 
-WebRTC video/control is preferred when media dependencies are installed; the JPEG
-path remains available for compatibility. The new transport removes the JPEG
-per-frame acknowledgement round trip. Encoding is currently software-based;
-GPU capture is attempted for a single Windows display with MSS fallback. No
-hardware encoding or physical-device latency improvement is claimed yet.
+## Install / run
 
-Optional remote access uses the included [Cloudflare service](cloud/README.md),
-pinned device keys, explicit laptop approval, and TURN fallback. **The service is
-not deployed by cloning this repo.** A hosted origin and provider secrets must be
-configured. Public installers can bundle that origin; users then only scan/approve.
+Public installer distribution is still a release gate. The Windows build workflow
+produces a portable app and a per-user installer as GitHub Actions artifacts.
+They are unsigned alpha builds, not published stable releases.
 
-Phone camera/mic forwarding and laptop audio playback have opt-in media paths.
-Camera/mic adapters currently require installed virtual devices on Windows;
-**bundled Deskpad Camera/Microphone drivers are not implemented**. This is not yet
-a verified Zoom-ready release. Read [release gates](docs/NEXT-RELEASE.md),
-[threat model](docs/REMOTE-THREAT-MODEL.md), and [third-party notices](THIRD-PARTY-NOTICES.md).
-
-The original local alpha behavior is documented below. Where it differs, the
-0.2 notes above and Cloudflare guide describe the current implementation.
-
-## Original local alpha
-
-- Edge-to-edge desktop fitted to width, with pinch zoom/pan preserved when the keyboard opens.
-- Slim, resizable trackpad with tap, two-finger right click, scrolling, long-press drag, and double-tap drag. Pointer speed defaults to 4×, adjustable from 2.5× to 7×.
-- Landscape desktop as a relative trackpad, with explicit Mouse/View modes and a docked, collapsible hotkey bar.
-- Optional one-thumb scroll wheel, mouse buttons, and drag lock; tiny Deskpad branding and a menu float over the desktop.
-- Native phone text input, desktop keys, one-shot modifiers, shortcuts, and a text-send box for pasting or dictation.
-- QR address and six-digit pairing; remembered phone credentials expire after 30 days.
-- One controller at a time; reconnect without replaying old input; held-input cleanup.
-- Separate control/video connections and one outstanding JPEG frame to avoid video backlog.
-- No account, subscription, telemetry, or third-party frontend requests.
-
-## Run from source
-
-Requirements: **Windows 10/11, Python 3.11+, Node.js 20.19+ or 22.12+**, and phone/laptop on the same trusted Wi-Fi network. Keep the laptop awake and its display active. Windows Home is supported; RDP is not used.
-
-From PowerShell in the repository:
+From source, use **Windows 10/11, Python 3.11+, Node.js 20.19+ or 22.12+**:
 
 ```powershell
 .\scripts\start.ps1
 ```
 
-The script installs the Python dependencies into `.venv`, installs/builds the phone client, and starts the host. It does not change your execution policy. If scripts are blocked, use the manual commands below or enable scripts according to your own Windows configuration.
+The script installs dependencies, builds the phone UI, and opens the desktop app.
+For contributors, `-Headless` opens the original CLI; `-Demo` uses a synthetic
+screen and records input without controlling the computer.
+
+Manual setup:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev,desktop,media]" -c requirements.lock
-cd web
-npm ci
-npm run build
-cd ..
-.\.venv\Scripts\deskpad.exe
+npm ci --prefix web
+npm run build --prefix web
+.\.venv\Scripts\deskpad-desktop.exe
 ```
 
-1. If Windows Firewall asks, allow the host on your **private** home network.
-2. Scan the QR code from your phone, or type the printed URL in Safari.
-3. Enter the pairing code printed in the host window.
-4. Optionally use Safari **Share → Add to Home Screen**. Keep the host window open.
+## Connect your phone
 
-Pairing transfers focus to the phone keyboard during your Connect tap. When reopening an already-paired page, tap the small keyboard button once; Safari may require that user gesture to show the native keyboard. Tap it again to dismiss. The screen keeps its width/zoom while the keyboard opens. The divider adjusts trackpad height; mouse buttons, shortcuts, Fit width, drag lock, and connection details are under the floating `···` menu.
+**Local only:** open Deskpad, scan its QR, and enter the displayed six-digit code.
+Both devices need the same trusted network. Allow private-network access if
+Windows Firewall asks. Keep the laptop awake and its display available.
 
-No QR discovery across networks: scanning opens the laptop's LAN address. If automatic address selection is wrong (VPN or multiple adapters), pass the laptop's Wi-Fi IPv4 address:
+**Anywhere:** requires a deployed [Cloudflare service](cloud/README.md). Cloning
+this repo does not create a live service. The operator deploys it and supplies its
+HTTPS origin in the installer; self-hosters can enter their origin in Settings.
+Enable Anywhere, complete the one-time verification in your laptop browser,
+scan the QR, compare the code on both screens, and approve the phone on the laptop.
+Later connections use the remembered phone key. Direct connections are preferred;
+TURN relays encrypted traffic when needed. No VPN app or router setup is required.
 
-```powershell
-.\.venv\Scripts\deskpad.exe --advertise 192.168.1.25
-```
+The laptop must be awake, online, and running Deskpad. Closing the desktop window
+hides it only when a system tray is available; choose Quit to stop the host.
+Local-only mode uses the LAN host and does not depend on the hosted service.
 
-Host options:
-
-```text
---port 8765        Listen port
---monitor 1        Capture one display (MSS index, starting at 1)
---fps 20           Frame rate cap: 5–30
---width 1440       Maximum encoded width: 960 / 1280 / 1440 / 1920
---quality 75       JPEG quality: 40–90
---bind 0.0.0.0     Listen on IPv4 interfaces
---forget-devices   Revoke all remembered phones and exit
---demo             Synthetic desktop; no screen capture or native input
-```
+In Safari, use **Share → Add to Home Screen** for a convenient shortcut. On an
+already-paired page, a keyboard-button tap may be needed to show the native
+keyboard. There is no offline service worker.
 
 ## Controls
 
@@ -114,28 +93,74 @@ Portrait keeps a separate trackpad beneath the screen. Landscape hides that trac
 
 The landscape bar collapses to a shorter rail with small branding, Mouse/View controls, a keyboard button, and an expand button. Collapse state is remembered. Landscape starts with the keyboard tucked away; open it explicitly when needed. Rotating back restores the portrait view and trackpad preferences, and attempts to restore keyboard focus if it was previously open. Safari may require a keyboard tap after rotation. Each orientation keeps its own in-session zoom/pan state.
 
-## Original local transport limits
+## Camera and audio
 
-- **Trusted LAN only.** The initial transport is HTTP/WebSocket, so network traffic is not encrypted. Do not port-forward it or use it on public Wi-Fi. Pairing prevents unauthenticated control; it does not encrypt the stream. See [SECURITY.md](SECURITY.md).
-- Ordinary desktop apps only. Windows UAC prompts, the lock screen, secure attention/Ctrl+Alt+Delete, and apps running at a higher integrity level are unsupported. Do not run the host as administrator as a workaround.
-- Streaming starts at 20 fps using JPEG, not hardware video encoding. No latency or FPS claim is made before device measurements. Text quality, bandwidth, and latency trade off against width/quality settings.
-- One captured monitor and one controller. The host tracks the real cursor and overlays a pointer on the phone; it does not stream native cursor shapes.
-- Phone text is committed text, not a full physical keyboard emulator. IME composition is sent on commit. Autocorrect is disabled; use Send text for reliable long pastes/dictation. Physical keyboard modifiers on the phone are not yet forwarded.
-- No automatic cursor-follow zoom, audio, file transfer, clipboard reading, host tray app, unattended startup, or internet access in this version.
-- Home Screen is a shortcut/standalone experience where supported. There is no offline service worker; normal LAN HTTP does not get all secure-context browser capabilities.
+Enable permissions in desktop Settings, then toggle each feature in the phone
+menu. Phone camera/mic access requires a trusted HTTPS origin and browser consent.
+Front/back camera switching and an optional preview are available in the menu.
+Disconnecting stops phone capture. Audio/video queues are bounded so slow sinks
+do not accumulate historical frames.
 
-## Develop
+- **Camera:** the development adapter uses pyvirtualcam with an installed supported
+  virtual camera, such as OBS Virtual Camera. It does not create a Deskpad-branded
+  Windows camera by itself.
+- **Microphone:** choose the output side of an installed virtual audio cable in
+  desktop Settings; choose that cable’s recording endpoint in Zoom. Do not choose
+  physical speakers, which would play your microphone aloud. Changed device
+  identities fail closed and require reselection.
+- **Speaker:** host loopback capture starts only when permitted on the laptop and
+  enabled on the phone. Real iPhone routing and echo behavior need device testing.
+
+Bundled native devices, signing, clean-machine installation, and real Zoom calls
+remain release work. No automatic third-party driver downloads are performed.
+
+## Performance and security
+
+WebRTC removes the legacy JPEG per-frame acknowledgement round trip. Encoding is
+currently software-based. GPU capture is attempted on a single-display Windows
+machine, with MSS fallback and explicit MSS selection on multi-display machines.
+Do not infer a latency guarantee from frame-rate settings or input RTT. Hardware
+encoding, adaptive-resolution tuning, and physical end-to-end measurements remain
+validation work.
+
+Local pairing/UI delivery uses HTTP and is **trusted-LAN-only**. WebRTC encryption
+does not protect JavaScript delivered over HTTP from an on-path attacker. Never
+port-forward the local HTTP server. Internet access uses a separate HTTPS client,
+signed device negotiation, and encrypted WebRTC transport.
+
+One controller owns input at a time across both transports. Queue limits,
+heartbeat timeouts, and disconnect cleanup release held keys/buttons. Remote
+administration is not exposed over HTTP. Windows identity secrets use user-scoped
+DPAPI; phone signing keys are non-extractable IndexedDB keys.
+
+A compromised hosting origin can replace its browser client; signed signaling
+does not solve compromised client code. TURN credential limits reduce abuse but
+are not a guaranteed spending cap. Read [SECURITY.md](SECURITY.md), the
+[threat model](docs/REMOTE-THREAT-MODEL.md), and [deployment guide](cloud/README.md).
+
+Ordinary desktop apps are supported. UAC, the Windows lock screen, secure attention
+and elevated apps are outside scope. Do not run Deskpad as administrator to bypass
+these boundaries. There is no file transfer or laptop clipboard-reading feature.
+
+## Development
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 .\.venv\Scripts\python.exe -m ruff check host
-cd web
-npm test
-npm run build
+npm test --prefix web
+npm run build --prefix web
+npm ci --prefix cloud
+npm run check --prefix cloud
+npm test --prefix cloud
 ```
 
-On macOS/Linux, use `.venv/bin/python` and `.venv/bin/deskpad --demo`. Native remote control is Windows-only. `npm run dev` rebuilds the client when files change; serve it from the host and reload Safari. This keeps frontend and host on the same origin.
+On Linux/macOS, use `.venv/bin/python` and `deskpad-desktop --demo` for synthetic
+UI work. Native capture/control is Windows-only. The browser tests include fake
+camera/mic devices and a test-only signaling harness; they do not establish live
+Cloudflare TURN, physical Safari, or Zoom acceptance.
 
-See [architecture](docs/ARCHITECTURE.md), [implementation plan](docs/PLAN.md), [wire protocol](docs/PROTOCOL.md), and [device testing](docs/TESTING.md). Contribution instructions are in [CONTRIBUTING.md](CONTRIBUTING.md).
+See [architecture](docs/ARCHITECTURE.md), [protocol](docs/PROTOCOL.md),
+[testing](docs/TESTING.md), and [contribution instructions](CONTRIBUTING.md).
 
-MIT licensed. Built for a useful, small first release, with replaceable capture and transport boundaries.
+Deskpad source is MIT licensed. Binary distributions include independently licensed
+components; read [third-party notices](THIRD-PARTY-NOTICES.md) before redistributing.

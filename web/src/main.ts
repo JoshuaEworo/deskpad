@@ -138,6 +138,11 @@ const connection = new Connection({
       $<HTMLInputElement>(`phone-${name}`).checked = false;
       void connection.media(name, false);
     }
+    if (kind === "speakers") {
+      $<HTMLInputElement>("phone-speaker").checked = false;
+      connection.listen(false);
+      laptopAudio.pause();
+    }
     toast(error);
   },
   localCamera(stream) {

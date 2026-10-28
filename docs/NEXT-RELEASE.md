@@ -31,11 +31,13 @@ close the peer and release all held keys/buttons. One controller across LAN and 
 
 - [x] Desktop lifecycle, pairing UI, device revocation, settings and installer source
 - [x] Windows CI builds the desktop executable and smoke-tests rendering/shutdown
-- [ ] Installer installation/uninstallation verified on a physical Windows machine
+- [x] Windows CI validates install, updater handoff, restart, pairing/settings persistence and uninstall
+- [ ] Physical Windows installation/uninstallation acceptance
 - [x] Signed pairing, replay tests, explicit approval, revocation
 - [x] Worker routing, authentication, rate and size limits, TURN credentials
 - [x] Desktop RTC capture/control and reconnect browser tests
 - [x] Phone media controls and adapters for installed Windows virtual devices
+- [x] Read-only setup discovery, guided instructions, status and fail-closed microphone routing
 - [ ] Bundled Deskpad Camera/Microphone devices without external device setup
 - [x] Cloudflare service deployed; native cellular acceptance remains pending
 - [ ] Native Windows, iPhone Safari, cellular and forced-relay acceptance
@@ -61,6 +63,7 @@ encoding without a verified hardware backend.
   shared relay-issuance budgets. This does not validate live TURN or Turnstile.
 - Qt offscreen demo launches, renders the desktop window, and shuts down its host.
 - Cloudflare service is deployed at https://deskpad.eworojoshua.workers.dev.
-- Signed alpha 0.2.0-alpha.2 is published; no physical upgrade success is claimed.
+- Public alpha 0.2.0-alpha.2 established the signed update channel.
+- The alpha 2 → alpha 3 installed update passes Windows CI. No physical upgrade success is claimed.
 - No physical Windows capture/input, iPhone Safari media routing, hardware encoder,
   native device installer, signed binary, or real Zoom call is claimed tested.

@@ -21,14 +21,17 @@ this is not a verified public remote-access or Zoom-device release. See the
 - Cloudflare signaling-service source with pinned device keys, signed negotiation,
   explicit laptop approval, replay protection, verified enrollment, and TURN fallback.
 - Opt-in phone camera/mic transport and laptop audio playback. Native adapters use
-  **installed virtual camera/audio devices**, not bundled Deskpad devices.
+  **installed virtual camera/audio devices**, not bundled Deskpad devices. Desktop
+  setup checks, guided instructions and phone-side status explain what is ready;
+  see [camera and audio setup](docs/MEDIA.md).
 - Windows executable/installer build and CI smoke test for desktop render/shutdown.
 
 ## Install / run
 
-Public installer distribution is still a release gate. The Windows build workflow
-produces a portable app and a per-user installer as GitHub Actions artifacts.
-They are unsigned alpha builds, not published stable releases.
+Download the Windows installer from [Deskpad alpha releases](https://github.com/JoshuaEworo/deskpad/releases).
+Quit an existing Deskpad instance from its system tray menu before a manual upgrade.
+The desktop app also offers **Settings → App updates** for signed, verified updates.
+These are alpha releases; Windows Authenticode signing is not configured yet.
 
 From source, use **Windows 10/11, Python 3.11+, Node.js 20.19+ or 22.12+**:
 
@@ -56,9 +59,9 @@ npm run build --prefix web
 Both devices need the same trusted network. Allow private-network access if
 Windows Firewall asks. Keep the laptop awake and its display available.
 
-**Anywhere:** requires a deployed [Cloudflare service](cloud/README.md). Cloning
-this repo does not create a live service. The operator deploys it and supplies its
-HTTPS origin in the installer; self-hosters can enter their origin in Settings.
+**Anywhere:** official alpha installers include the hosted Deskpad service origin.
+Self-hosters can deploy their own [Cloudflare service](cloud/README.md) and enter its
+HTTPS origin in Settings. Cloning the repo does not deploy a separate service.
 Enable Anywhere, complete the one-time verification in your laptop browser,
 scan the QR, compare the code on both screens, and approve the phone on the laptop.
 Later connections use the remembered phone key. Direct connections are preferred;
@@ -165,4 +168,4 @@ See [architecture](docs/ARCHITECTURE.md), [protocol](docs/PROTOCOL.md),
 Deskpad source is MIT licensed. Binary distributions include independently licensed
 components; read [third-party notices](THIRD-PARTY-NOTICES.md) before redistributing.
 
-Desktop update architecture and maintainer activation: [docs/UPDATES.md](docs/UPDATES.md). The signed alpha update channel is live. Install [Deskpad 0.2.0-alpha.2](https://github.com/JoshuaEworo/deskpad/releases/tag/v0.2.0-alpha.2) once to get the updater; physical Windows upgrade acceptance is still pending.
+Desktop update architecture and maintainer activation: [docs/UPDATES.md](docs/UPDATES.md). The signed alpha update channel is live. Install a current alpha once to get the updater. Windows CI verifies installation, updater handoff, restart, settings/pairing persistence and uninstall; physical Windows/iPhone/Zoom acceptance is still pending.

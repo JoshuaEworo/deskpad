@@ -66,13 +66,15 @@ class Settings(BaseModel):
 
     @classmethod
     def load(cls, path):
-        if path.exists():
-            return cls.model_validate_json(path.read_text())
+        settings = cls.model_validate_json(path.read_text()) if path.exists() else cls()
+        if settings.service_url:
+            return settings
         deployment = Path(__file__).with_name("deployment.json")
         origin = (
             json.loads(deployment.read_text()).get("service_url", "") if deployment.exists() else ""
         )
-        return cls(service_url=origin)
+        settings.service_url = origin
+        return settings
 
     def save(self, path):
         atomic_json(path, self.model_dump())

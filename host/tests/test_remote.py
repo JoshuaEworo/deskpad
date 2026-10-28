@@ -126,3 +126,13 @@ def test_speaker_capture_requires_phone_opt_in(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", checked_import)
     assert np.count_nonzero(source.read(False)) == 0
+
+
+def test_empty_saved_service_uses_bundled_origin_without_enabling_remote(tmp_path):
+    path = tmp_path / "settings.json"
+    Settings(name="My PC", remote=False).save(path)
+    loaded = Settings.load(path)
+    assert loaded.service_url == "https://deskpad.eworojoshua.workers.dev"
+    assert not loaded.remote and loaded.name == "My PC"
+    Settings(service_url="https://self-hosted.example", remote=True).save(path)
+    assert Settings.load(path).service_url == "https://self-hosted.example"

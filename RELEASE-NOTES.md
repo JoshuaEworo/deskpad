@@ -1,18 +1,10 @@
-Deskpad 0.2.0-alpha.5
+Deskpad 0.2.0-alpha.6
 
-- Adds a public landing page with a Windows download and phone connection entry.
-- Renders pairing QR modules on an exact pixel grid for reliable scanning.
-- Adds QR scanning inside the phone site/PWA, with camera capture stopped on exit.
-- Removes revoked phone access immediately and returns the phone to pairing.
-- Makes End session explicit, retaining pairing and waiting for intentional reconnect.
-- Recovers signaling after the desktop goes offline and comes back.
-- Shows pairing and connection progress instead of a silent wait.
-- Refreshes expired pairing QRs automatically, with a subtle countdown.
-- Uses discovered ICE routes after four seconds when unused transports stall.
-- Moves Pause sharing alongside status and removes repetitive desktop text.
-- Bundles the raster Deskpad icon and explicitly assigns native Windows taskbar icons.
-- Keeps the app open unless the update helper confirms it has started.
+- Reorganizes the desktop pairing card into a compact two-column layout.
+- Places the QR countdown and a small refresh action together beneath the QR.
+- Keeps the address and access selector alongside the pairing instructions.
+- Shows the six-digit entry code only in Local only mode.
+- Clarifies Anywhere pairing: request on the phone, then approve on the laptop.
+- Hides unused PIN space rather than leaving a blank code row.
 
-Camera and microphone still require supported installed virtual devices.
-Windows native icon/build checks and upgrade acceptance run in CI; pinned shortcut
-caches and physical iPhone/cellular/Zoom behavior require device acceptance.
+Settings and paired phones are preserved by the installer.

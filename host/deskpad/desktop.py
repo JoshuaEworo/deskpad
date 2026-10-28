@@ -40,6 +40,7 @@ QPushButton:hover {background:#253a2d;border-color:#81ad92;}
 QPushButton:pressed, QPushButton:checked {background:#2c4535;border-color:#b1e3c7;color:#b1e3c7;}
 QPushButton#primary {background:#b1e3c7;color:#102317;border:0;font-weight:600;}
 QPushButton#access {padding:7px 15px;}
+QPushButton#quiet {padding:3px 7px;border:0;background:transparent;color:#95a69c;font-size:12px;}
 QPushButton#nav {text-align:left;border:0;padding:13px 17px;background:transparent;}
 QPushButton#nav:checked {background:#203328;color:#b1e3c7;}
 QPushButton:disabled {color:#66796b;}
@@ -289,39 +290,51 @@ def build_window(settings, service, directory, engine):
             layout.addWidget(self.status)
             frame, content = card()
             row = QHBoxLayout()
+            row.setSpacing(24)
+            qr_column = QVBoxLayout()
+            qr_column.setSpacing(6)
             self.qr = label("")
             self.qr.setFixedSize(204, 204)
             self.qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            row.addWidget(self.qr)
-            text = QVBoxLayout()
-            text.setContentsMargins(20, 0, 0, 0)
-            text.addWidget(label("Pair your phone", "section"))
-            text.addWidget(label("Scan with your phone camera.", wrap=True))
-            self.instructions = label("Enter this code on your phone:", "muted", True)
-            text.addWidget(self.instructions)
-            self.pin = label("…", "code")
-            text.addWidget(self.pin)
-            text.addStretch()
-            row.addLayout(text, 1)
-            content.addLayout(row)
-            self.address = label("", "muted", True)
-            self.address.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            content.addWidget(self.address)
+            qr_column.addWidget(self.qr)
             qr_actions = QHBoxLayout()
+            qr_actions.setSpacing(4)
             self.qr_timer = label("", "muted")
+            self.qr_timer.setStyleSheet("font-size:12px;")
             qr_actions.addWidget(self.qr_timer, 1)
-            qr_actions.addWidget(button("↻ Refresh QR", lambda: service.command("new-invite")))
-            content.addLayout(qr_actions)
-            row = QHBoxLayout()
-            row.setContentsMargins(0, 6, 0, 0)
-            row.addWidget(label("Access", "muted"))
-            row.addStretch()
+            refresh = button("↻", lambda: service.command("new-invite"), "quiet")
+            refresh.setAccessibleName("Refresh pairing QR")
+            refresh.setToolTip("Refresh pairing QR")
+            refresh.setFixedSize(28, 26)
+            qr_actions.addWidget(refresh)
+            qr_column.addLayout(qr_actions)
+            row.addLayout(qr_column)
+            text = QVBoxLayout()
+            text.setSpacing(10)
+            text.addWidget(label("Pair your phone", "section"))
+            text.addWidget(
+                label("Scan this QR with your phone camera or the Deskpad scanner.", wrap=True)
+            )
+            self.instructions = label("", "muted", True)
+            text.addWidget(self.instructions)
+            self.pin = label("", "code")
+            text.addWidget(self.pin)
+            self.address = label("", "muted", True)
+            self.address.setStyleSheet("font-size:12px;")
+            self.address.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            text.addWidget(self.address)
+            text.addStretch()
+            access = QHBoxLayout()
+            access.setSpacing(6)
             self.local = button("Local only", lambda: self.remote_mode(False))
             self.anywhere = button("Anywhere", lambda: self.remote_mode(True))
             for item in (self.local, self.anywhere):
                 item.setCheckable(True)
                 item.setObjectName("access")
-                row.addWidget(item)
+                access.addWidget(item)
+            access.addStretch()
+            text.addLayout(access)
+            row.addLayout(text, 1)
             content.addLayout(row)
             self.setup_button = button("Finish remote setup", self.finish_setup, "primary")
             self.setup_button.hide()
@@ -819,9 +832,9 @@ def build_window(settings, service, directory, engine):
             )
             remaining = max(0, int(snapshot.get("invite_until", 0) - time.time()))
             self.qr_timer.setText(
-                f"Refreshes in {remaining // 60:02d}:{remaining % 60:02d}"
+                f"New QR in {remaining // 60:02d}:{remaining % 60:02d}"
                 if settings.remote and snapshot.get("remote_url")
-                else ""
+                else "Pairing QR"
             )
             self.setup_button.setVisible(bool(snapshot.get("setup_url")))
             url = snapshot.get("remote_url", "") if settings.remote else snapshot["url"]
@@ -839,12 +852,15 @@ def build_window(settings, service, directory, engine):
                 else:
                     self.qr.clear()
                     self.qr.setText("Connecting…")
-            self.address.setText(settings.service_url if settings.remote else snapshot["url"])
+            address = settings.service_url if settings.remote else snapshot["url"]
+            self.address.setText(address.removeprefix("https://").removeprefix("http://"))
+            self.address.setToolTip(address)
             self.instructions.setText(
-                "Approve the matching code on this laptop."
+                "Request pairing on your phone, then approve it here."
                 if settings.remote
                 else "Enter this code on your phone:"
             )
+            self.pin.setVisible(not settings.remote)
             self.pin.setText("" if settings.remote else snapshot["pin"])
             pending = snapshot["pending"]
             if pending != self.last_pending:

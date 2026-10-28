@@ -37,10 +37,11 @@ close the peer and release all held keys/buttons. One controller across LAN and 
 - [x] Desktop RTC capture/control and reconnect browser tests
 - [x] Phone media controls and adapters for installed Windows virtual devices
 - [ ] Bundled Deskpad Camera/Microphone devices without external device setup
-- [ ] Hosted staging deployment with real Cloudflare account
+- [x] Cloudflare service deployed; native cellular acceptance remains pending
 - [ ] Native Windows, iPhone Safari, cellular and forced-relay acceptance
 - [x] Signed update metadata verification, bounded downloads and installer handoff source
-- [ ] Update signing key, public channel and physical Windows upgrade acceptance
+- [x] Update signing key and public alpha channel, signature/digest verified
+- [ ] Physical Windows upgrade acceptance
 - [ ] Signed installer / signed virtual device distribution
 
 Media Foundation camera and audio-driver integration require native Windows testing.
@@ -59,6 +60,7 @@ encoding without a verified hardware backend.
   concurrent registration, oversized/malformed requests, enrollment gating and
   shared relay-issuance budgets. This does not validate live TURN or Turnstile.
 - Qt offscreen demo launches, renders the desktop window, and shuts down its host.
-- No live Cloudflare account is authenticated. No public service is deployed.
+- Cloudflare service is deployed at https://deskpad.eworojoshua.workers.dev.
+- Signed alpha 0.2.0-alpha.2 is published; no physical upgrade success is claimed.
 - No physical Windows capture/input, iPhone Safari media routing, hardware encoder,
   native device installer, signed binary, or real Zoom call is claimed tested.

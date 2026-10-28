@@ -165,4 +165,4 @@ See [architecture](docs/ARCHITECTURE.md), [protocol](docs/PROTOCOL.md),
 Deskpad source is MIT licensed. Binary distributions include independently licensed
 components; read [third-party notices](THIRD-PARTY-NOTICES.md) before redistributing.
 
-Desktop update architecture and maintainer activation: [docs/UPDATES.md](docs/UPDATES.md). The update channel is not live until its signing key and public releases are configured.
+Desktop update architecture and maintainer activation: [docs/UPDATES.md](docs/UPDATES.md). The signed alpha update channel is live. Install [Deskpad 0.2.0-alpha.2](https://github.com/JoshuaEworo/deskpad/releases/tag/v0.2.0-alpha.2) once to get the updater; physical Windows upgrade acceptance is still pending.

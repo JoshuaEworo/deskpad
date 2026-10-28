@@ -25,9 +25,11 @@ upgrade/failure-path acceptance remains a release gate.
 
 ## One-time maintainer activation
 
-The repository is currently private. A public update verification key is pinned;
-the private key backup is stored separately and has not been entered in GitHub.
-No update channel is live until the following setup is complete. Do not distribute
+The repository is public. The verification key is pinned and its private half is
+configured in GitHub Actions. The signed 0.2.0-alpha.2 release and update channel
+are published; the public signature and installer digest/size have been verified.
+Physical Windows upgrade acceptance is still pending. The steps below document
+maintainer bootstrap for independent deployments. Do not distribute
 an initial updater build before pinning its public key; existing apps cannot safely
 learn a new signing key from unsigned network configuration.
 

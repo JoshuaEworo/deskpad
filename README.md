@@ -28,7 +28,7 @@ this is not a verified public remote-access or Zoom-device release. See the
 
 ## Install / run
 
-Download the Windows installer from [Deskpad alpha releases](https://github.com/JoshuaEworo/deskpad/releases).
+Start at [the Deskpad website](https://deskpad.eworojoshua.workers.dev) to download the Windows installer or connect your phone. Downloads come from [GitHub Releases](https://github.com/JoshuaEworo/deskpad/releases).
 Quit an existing Deskpad instance from its system tray menu before a manual upgrade.
 The desktop app also offers **Settings → App updates** for signed, verified updates.
 These are alpha releases; Windows Authenticode signing is not configured yet.

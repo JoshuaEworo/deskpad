@@ -18,13 +18,13 @@ from deskpad.updates import (
 def signed(**changes):
     key = Ed25519PrivateKey.generate()
     data = dict(
-        version="0.2.0-alpha.5",
+        version="0.2.0-alpha.6",
         platform="windows-x64",
         published=1000,
         expires=2000,
         notes="Release notes",
         size=5,
-        url=f"https://github.com/{REPOSITORY}/releases/download/v0.2.0-alpha.5/Deskpad-Setup-Windows-x64.exe",
+        url=f"https://github.com/{REPOSITORY}/releases/download/v0.2.0-alpha.6/Deskpad-Setup-Windows-x64.exe",
         sha256=hashlib.sha256(b"hello").hexdigest(),
     )
     data.update(changes)
@@ -41,8 +41,8 @@ def signed(**changes):
 
 def test_signed_release_and_version_order():
     envelope, public = signed()
-    assert verify_release(envelope, public, now=1100).version == "0.2.0-alpha.5"
-    assert verify_release(envelope, public, current="0.2.0-alpha.5", now=1100) is None
+    assert verify_release(envelope, public, now=1100).version == "0.2.0-alpha.6"
+    assert verify_release(envelope, public, current="0.2.0-alpha.6", now=1100) is None
     assert verify_release(envelope, public, current="0.2.0", now=1100) is None
     assert version_key("0.2.0-alpha.9") < version_key("0.2.0-alpha.10") < version_key("0.2.0")
 
@@ -67,7 +67,7 @@ def test_rejects_tampering_and_wrong_signer():
         {"platform": "linux"},
         {"url": "http://github.com/malicious.exe"},
         {
-            "url": "https://github.com/other/repo/releases/download/v0.2.0-alpha.5/Deskpad-Setup-Windows-x64.exe"
+            "url": "https://github.com/other/repo/releases/download/v0.2.0-alpha.6/Deskpad-Setup-Windows-x64.exe"
         },
         {"size": 500 * 1024 * 1024},
         {"sha256": "wrong"},

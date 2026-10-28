@@ -1,4 +1,4 @@
-Deskpad 0.2.0-alpha.4
+Deskpad 0.2.0-alpha.5
 
 - Adds a public landing page with a Windows download and phone connection entry.
 - Renders pairing QR modules on an exact pixel grid for reliable scanning.

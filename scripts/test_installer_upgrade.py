@@ -26,7 +26,7 @@ def run():
     if os.name != "nt":
         raise RuntimeError("Installer acceptance requires Windows")
     # The previous public release is the baseline for the first updater upgrade.
-    baseline_url = f"https://github.com/{REPOSITORY}/releases/download/v0.2.0-alpha.3/update.json"
+    baseline_url = f"https://github.com/{REPOSITORY}/releases/download/v0.2.0-alpha.4/update.json"
     root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory(prefix="deskpad-upgrade-") as temporary:
         stage = Path(temporary)

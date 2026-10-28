@@ -35,6 +35,7 @@ QPushButton {background:#1b2921;border:1px solid #354c3e;border-radius:7px;paddi
 QPushButton:hover {background:#253a2d;border-color:#81ad92;}
 QPushButton:pressed, QPushButton:checked {background:#2c4535;border-color:#b1e3c7;color:#b1e3c7;}
 QPushButton#primary {background:#b1e3c7;color:#102317;border:0;font-weight:600;}
+QPushButton#access {padding:7px 15px;}
 QPushButton#nav {text-align:left;border:0;padding:13px 17px;background:transparent;}
 QPushButton#nav:checked {background:#203328;color:#b1e3c7;}
 QPushButton:disabled {color:#66796b;}
@@ -180,6 +181,7 @@ def build_window(settings, service, directory, engine):
             self.setMinimumSize(800, 650)
             icon = QIcon(str(Path(__file__).with_name("static") / "icon.svg"))
             self.setWindowIcon(icon)
+            QApplication.instance().setWindowIcon(icon)
             self.tray = None
             self.notified = False
             self.last_qr = self.last_devices = self.last_pending = None
@@ -196,7 +198,12 @@ def build_window(settings, service, directory, engine):
             nav = QVBoxLayout(side)
             nav.setContentsMargins(16, 24, 16, 20)
             nav.setSpacing(10)
-            nav.addWidget(label("▣  deskpad", "brand"))
+            brand = QHBoxLayout()
+            mark = label("")
+            mark.setPixmap(icon.pixmap(28, 28))
+            brand.addWidget(mark)
+            brand.addWidget(label("deskpad", "brand"), 1)
+            nav.addLayout(brand)
             nav.addSpacing(26)
             self.pages = QStackedWidget()
             self.nav = []
@@ -278,14 +285,15 @@ def build_window(settings, service, directory, engine):
             self.address.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             content.addWidget(self.address)
             content.addWidget(button("Refresh pairing QR", lambda: service.command("new-invite")))
-            layout.addWidget(frame)
-            frame, content = card()
-            content.addWidget(label("Connection access", "section"))
             row = QHBoxLayout()
+            row.setContentsMargins(0, 6, 0, 0)
+            row.addWidget(label("Access", "muted"))
+            row.addStretch()
             self.local = button("Local only", lambda: self.remote_mode(False))
             self.anywhere = button("Anywhere", lambda: self.remote_mode(True))
             for item in (self.local, self.anywhere):
                 item.setCheckable(True)
+                item.setObjectName("access")
                 row.addWidget(item)
             content.addLayout(row)
             self.setup_button = button("Finish remote setup", self.finish_setup, "primary")
@@ -611,6 +619,13 @@ def main():
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
     from PySide6.QtWidgets import QApplication, QMessageBox
 
+    if os.name == "nt":
+        import ctypes
+
+        set_app_id = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID
+        set_app_id.argtypes = [ctypes.c_wchar_p]
+        set_app_id.restype = ctypes.c_long
+        set_app_id("Deskpad.Desktop")
     app = QApplication(sys.argv[:1])
     app.setApplicationName("Deskpad")
     app.setStyle("Fusion")

@@ -12,6 +12,7 @@ OutputBaseFilename=Deskpad-Setup-Windows-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\build\deskpad.ico
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\Deskpad.exe
@@ -19,8 +20,8 @@ CloseApplications=yes
 [Files]
 Source: "..\dist\Deskpad\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 [Icons]
-Name: "{group}\Deskpad"; Filename: "{app}\Deskpad.exe"
-Name: "{autodesktop}\Deskpad"; Filename: "{app}\Deskpad.exe"; Tasks: desktopicon
+Name: "{group}\Deskpad"; Filename: "{app}\Deskpad.exe"; AppUserModelID: "Deskpad.Desktop"
+Name: "{autodesktop}\Deskpad"; Filename: "{app}\Deskpad.exe"; AppUserModelID: "Deskpad.Desktop"; Tasks: desktopicon
 [Tasks]
 Name: desktopicon; Description: "Create a desktop shortcut"; Flags: unchecked
 [Run]

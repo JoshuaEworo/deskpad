@@ -1,5 +1,6 @@
 import "./style.css";
-import { Connection } from "./connection";
+import { Connection } from "./session";
+import { forgetRemote } from "./remote-identity";
 import { TrackpadGesture } from "./gestures";
 import { attachKeyboard } from "./keyboard";
 import type { Frame } from "./protocol";
@@ -10,6 +11,10 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const typing = $("typing");
 const desktop = $<HTMLImageElement>("desktop");
+const desktopVideo = $<HTMLVideoElement>("desktop-video");
+const laptopAudio = $<HTMLAudioElement>("laptop-audio");
+let route = "Local";
+let cameraFacing: "user" | "environment" = "user";
 const pad = $("trackpad");
 const viewer = new DesktopViewer($("screen"), $("picture"));
 let landscape = false;
@@ -62,6 +67,14 @@ const connection = new Connection({
       busy: "Laptop is in use",
       unpaired: "Pair this phone",
     };
+    if (state === "connected") {
+      $("pairing").hidden = true;
+      $("workspace").hidden = false;
+      $("app").classList.add("in-session");
+    } else {
+      for (const id of ["phone-camera", "phone-microphone"])
+        $<HTMLInputElement>(id).checked = false;
+    }
     $("status").textContent = labels[state];
     $("connection-detail").textContent = labels[state];
     $("brand-status").title = labels[state];
@@ -94,6 +107,8 @@ const connection = new Connection({
       URL.revokeObjectURL(url);
       throw error;
     }
+    desktopVideo.hidden = true;
+    desktop.hidden = false;
     desktop.src = url;
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     imageUrl = url;
@@ -106,12 +121,68 @@ const connection = new Connection({
       requestAnimationFrame(() => resolve()),
     );
   },
+  mediaAllowed(allowed) {
+    for (const [id, value] of [
+      ["phone-camera", allowed.camera],
+      ["phone-microphone", allowed.microphone],
+      ["phone-speaker", allowed.speakers],
+    ] as const) {
+      $<HTMLInputElement>(id).disabled = !value;
+      $(id).title = value ? "" : "Allow this feature in desktop Settings first";
+    }
+  },
+  mediaError(kind, error) {
+    const name =
+      kind === "video" ? "camera" : kind === "audio" ? "microphone" : undefined;
+    if (name) {
+      $<HTMLInputElement>(`phone-${name}`).checked = false;
+      void connection.media(name, false);
+    }
+    toast(error);
+  },
+  localCamera(stream) {
+    const preview = $<HTMLVideoElement>("camera-preview");
+    preview.srcObject = stream;
+    preview.hidden = !stream;
+    if (stream) void preview.play().catch(() => {});
+  },
+  metadata(metadata) {
+    frame = metadata;
+    position = metadata.cursor;
+    viewer.setAspect(metadata.width, metadata.height);
+    $("screen-empty").hidden = true;
+    drawCursor();
+  },
+  stream(stream, kind) {
+    if (kind === "video") {
+      desktop.hidden = true;
+      desktopVideo.hidden = false;
+      desktopVideo.srcObject = stream;
+      void desktopVideo
+        .play()
+        .catch(() => toast("Tap Reconnect to resume desktop video."));
+    } else {
+      laptopAudio.srcObject = stream;
+      if ($<HTMLInputElement>("phone-speaker").checked)
+        void laptopAudio
+          .play()
+          .catch(() => toast("Tap Hear laptop audio to start playback."));
+    }
+  },
+  route(value) {
+    route = value;
+  },
+  pairing(code) {
+    $("remote-pair-status").textContent =
+      `Approve this code on your laptop: ${code}`;
+  },
   cursor(value) {
     position = value;
     drawCursor();
   },
   latency(ms) {
-    $("metrics").textContent = `${Math.round(ms)} MS · LOCAL`;
+    $("metrics").textContent =
+      `${Math.round(ms)} MS · ${route.toUpperCase()} · INPUT RTT`;
   },
   error: toast,
 });
@@ -496,6 +567,11 @@ $("reconnect").addEventListener("click", () => {
 $("forget").addEventListener("click", async () => {
   desiredConnection = false;
   connection.stop();
+  if (connection.remote) {
+    forgetRemote();
+    location.reload();
+    return;
+  }
   const result = await fetch("/api/forget", { method: "POST" });
   if (!result.ok) {
     toast("Could not forget this phone. Check the host.");
@@ -549,14 +625,82 @@ $("pair-form").addEventListener("submit", async (event) => {
     button.disabled = false;
   }
 });
-void fetch("/api/status")
-  .then((r) => r.json())
-  .then((status) => {
-    if (status.paired) enterWorkspace(status.demo);
-    else $("pairing").hidden = false;
-  })
-  .catch(() => {
-    $("pairing").hidden = false;
-    $("pair-error").textContent =
-      "Cannot reach the host. Keep Deskpad running on your laptop, then reload.";
+for (const [id, kind] of [
+  ["phone-camera", "camera"],
+  ["phone-microphone", "microphone"],
+] as const) {
+  const control = $<HTMLInputElement>(id);
+  control.addEventListener("change", async () => {
+    control.disabled = true;
+    try {
+      await connection.media(kind, control.checked, cameraFacing);
+    } catch (error) {
+      control.checked = false;
+      toast(error instanceof Error ? error.message : "Media unavailable");
+    } finally {
+      control.disabled = false;
+    }
   });
+}
+$<HTMLInputElement>("phone-speaker").addEventListener(
+  "change",
+  async (event) => {
+    const control = event.target as HTMLInputElement;
+    if (!control.checked) {
+      laptopAudio.pause();
+      return;
+    }
+    try {
+      await laptopAudio.play();
+    } catch {
+      control.checked = false;
+      toast("Connect first and allow laptop audio in desktop Settings.");
+    }
+  },
+);
+$("flip-camera").addEventListener("click", async () => {
+  if (!$<HTMLInputElement>("phone-camera").checked) {
+    toast("Enable your phone camera first.");
+    return;
+  }
+  cameraFacing = cameraFacing === "user" ? "environment" : "user";
+  try {
+    await connection.media("camera", true, cameraFacing);
+  } catch (error) {
+    $<HTMLInputElement>("phone-camera").checked = false;
+    toast(String(error));
+  }
+});
+$("remote-connect").addEventListener("click", () => {
+  const name = $<HTMLInputElement>("phone-name").value.trim() || "My phone";
+  localStorage.setItem("deskpad.phoneName", name.slice(0, 64));
+  $("remote-pair-status").textContent = "Requesting approval from your laptop…";
+  desiredConnection = true;
+  connection.start();
+});
+if (connection.remote) {
+  $("pairing").hidden = false;
+  $("pair-form").hidden = true;
+  $("local-pair-description").hidden = true;
+  $("remote-pair").hidden = false;
+  $("pair-title").textContent = connection.remote.name || "Your laptop";
+  $("pair-note").textContent = "Approve on your laptop · No account needed";
+  if (connection.remote.approved) enterWorkspace(false);
+} else
+  void fetch("/api/status")
+    .then((r) => r.json())
+    .then((status) => {
+      if (status.remoteService) {
+        $("pair-form").hidden = true;
+        $("local-pair-description").textContent =
+          "Open Deskpad on your laptop and scan its QR code to pair this phone.";
+        $("pair-note").textContent = "Your laptop. Wherever you are.";
+      }
+      if (status.paired) enterWorkspace(status.demo);
+      else $("pairing").hidden = false;
+    })
+    .catch(() => {
+      $("pairing").hidden = false;
+      $("pair-error").textContent =
+        "Cannot reach the host. Keep Deskpad running on your laptop, then reload.";
+    });

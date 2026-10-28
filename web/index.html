@@ -26,7 +26,7 @@
       <section id="pairing" class="pairing" aria-labelledby="pair-title" hidden>
         <div class="eyebrow">YOUR COMPUTER. WITHIN REACH.</div>
         <h1 id="pair-title">A little closer<br />to your desktop.</h1>
-        <p>
+        <p id="local-pair-description">
           Enter the six-digit code shown on your laptop to connect this phone.
         </p>
         <form id="pair-form">
@@ -44,8 +44,23 @@
             Connect to laptop <span aria-hidden="true">↗</span>
           </button>
         </form>
+        <div id="remote-pair" hidden>
+          <label for="phone-name">Phone name</label>
+          <input
+            id="phone-name"
+            maxlength="64"
+            value="My iPhone"
+            autocomplete="off"
+          />
+          <button id="remote-connect" class="primary">Request pairing</button>
+          <p id="remote-pair-status" role="status">
+            Your laptop must be online with Deskpad running.
+          </p>
+        </div>
         <p id="pair-error" role="alert"></p>
-        <div class="pair-note">On the same Wi-Fi · No account needed</div>
+        <div id="pair-note" class="pair-note">
+          On the same Wi-Fi · No account needed
+        </div>
       </section>
       <section
         id="workspace"
@@ -59,6 +74,14 @@
           aria-label="Laptop screen. Pinch to zoom; drag to pan."
         >
           <div id="picture" class="picture">
+            <video
+              id="desktop-video"
+              autoplay
+              playsinline
+              muted
+              hidden
+              aria-label="Live laptop desktop"
+            ></video>
             <img id="desktop" alt="Live laptop desktop" draggable="false" />
             <svg id="cursor" viewBox="0 0 24 30" aria-hidden="true">
               <path
@@ -254,6 +277,29 @@
           ><input id="natural-scroll" type="checkbox" checked /> Natural
           scrolling</label
         >
+        <div
+          class="media-controls"
+          role="group"
+          aria-label="Phone camera and audio"
+        >
+          <label class="check-row"
+            ><input id="phone-camera" type="checkbox" disabled /> Use phone camera</label
+          >
+          <label class="check-row"
+            ><input id="phone-microphone" type="checkbox" disabled /> Use phone
+            microphone</label
+          >
+          <label class="check-row"
+            ><input id="phone-speaker" type="checkbox" disabled /> Hear laptop
+            audio</label
+          >
+          <button id="flip-camera">Switch front / back camera</button>
+          <video id="camera-preview" muted playsinline autoplay hidden aria-label="Phone camera preview"></video>
+          <p class="settings-help">
+            Allow media in desktop Settings first. Camera and mic require HTTPS
+            and installed virtual devices on Windows.
+          </p>
+        </div>
         <div id="shortcuts" class="shortcuts" aria-label="Shortcuts">
           <button data-shortcut="Control,c">Copy</button
           ><button data-shortcut="Control,v">Paste on PC</button
@@ -288,8 +334,9 @@
           </div>
         </form>
       </dialog>
+      <audio id="laptop-audio" playsinline></audio>
       <div id="toast" class="toast" role="alert" hidden></div>
     </main>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/entry.ts"></script>
   </body>
 </html>

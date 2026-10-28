@@ -1,6 +1,7 @@
 name: Windows build
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches: [main]
 permissions:
@@ -20,13 +21,26 @@ jobs:
         working-directory: web
       - run: npm run build
         working-directory: web
-      - run: python -m pip install -e ".[dev]" -c requirements.lock pyinstaller
+      - run: python -m pip install -e ".[dev,desktop,media]" -c requirements.lock pyinstaller
       - run: python -m pytest -q
-      - run: python -m PyInstaller --noconfirm --name Deskpad --collect-submodules uvicorn --collect-submodules mss --collect-submodules websockets --add-data "host/deskpad/static:deskpad/static" scripts/frozen_entry.py
-      - run: Copy-Item README.md,LICENSE,SECURITY.md dist/Deskpad/
+      - name: Bundle hosted origin
+        env:
+          DESKPAD_SERVICE_URL: ${{ vars.DESKPAD_SERVICE_URL }}
+        run: python -c "import json,os,pathlib; from deskpad.settings import Settings; value=Settings(service_url=os.environ.get('DESKPAD_SERVICE_URL','')); pathlib.Path('host/deskpad/deployment.json').write_text(json.dumps({'service_url':value.service_url}))"
+      - run: python -m PyInstaller --noconfirm --windowed --name Deskpad --collect-submodules uvicorn --collect-submodules mss --collect-submodules websockets --collect-submodules aiortc --collect-submodules av --collect-submodules soundcard --collect-submodules sounddevice --collect-submodules pyvirtualcam --collect-submodules dxcam --add-data "host/deskpad/static:deskpad/static" --add-data "host/deskpad/deployment.json:deskpad" scripts/desktop_entry.py
+      - name: Smoke test desktop startup and shutdown
+        run: |
+          & .\dist\Deskpad\Deskpad.exe --demo --screenshot "$env:RUNNER_TEMP\deskpad-desktop.png" | Out-Null
+          if (-not (Test-Path "$env:RUNNER_TEMP\deskpad-desktop.png")) { throw "Desktop smoke test did not render a window." }
+      - run: python scripts/collect_notices.py
+      - run: Copy-Item README.md,LICENSE,SECURITY.md,THIRD-PARTY-NOTICES.md dist/Deskpad/
       - run: Compress-Archive -Path dist/Deskpad -DestinationPath dist/Deskpad-Windows-x64.zip
+      - name: Create per-user installer
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" scripts/installer.iss'
       - uses: actions/upload-artifact@v4
         with:
           name: Deskpad-Windows-x64
-          path: dist/Deskpad-Windows-x64.zip
+          path: |
+            dist/Deskpad-Windows-x64.zip
+            dist/Deskpad-Setup-Windows-x64.exe
           retention-days: 14

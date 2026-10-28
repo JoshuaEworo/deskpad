@@ -75,3 +75,26 @@ LAN HTTP remains plaintext. This is an explicit alpha limitation, not a claim of
 - MIT: permissive reuse for the public project; dependencies retain their own licenses.
 
 Before adding WebRTC, measure input RTT, encode/decode time, text readability, and network throughput on target hardware. Before a stable public release, complete the device matrix and resolve the outstanding input/viewport bugs in the testing checklist.
+
+
+## Desktop and WebRTC architecture (0.2 alpha)
+
+`desktop.py` owns Qt and the tray on the main thread. `Engine` runs Uvicorn on a
+separate thread. `Service` synchronizes snapshots and schedules commands on the
+engine loop; it exposes no HTTP administration. Settings are validated and saved
+atomically. `RtcHub` shares the existing controller lease and serialized input
+worker with the WebSocket server. `Peer` bounds control queues, handles heartbeat
+timeouts, and releases all held input before dropping its lease.
+
+`Identity` persists P-256 keys and approved-device public keys. `Remote` makes
+outbound HTTPS/WSS connections and verifies signed requests before creating a peer.
+The cloud Worker routes opaque signaling through one hibernatable Durable Object
+per host. A separate Budget object serializes service-wide relay issuance limits.
+Cloud credentials remain in Worker secrets. The browser uses non-extractable
+IndexedDB signing keys, pinned host keys, and nonce-checked responses.
+
+`session.ts` selects RTC or legacy JPEG. `RtcConnection` handles negotiation,
+media track switching, bounded input, and reconnect. `DesktopViewer` and gesture
+code are unchanged. `media_devices.py` isolates Windows virtual camera/audio and
+loopback adapters; host and phone must independently opt in. Native-device
+distribution remains a release gate, rather than a fake successful toggle.

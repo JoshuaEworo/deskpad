@@ -6,7 +6,34 @@ A free, local-first remote desktop for a Windows laptop and an iPhone. Hold your
 
 **Early alpha, not a verified Windows/iPhone release.** The host protocol and browser UI have automated tests. Real Windows screen capture/input and the physical iPhone keyboard still require the acceptance checks in [docs/TESTING.md](docs/TESTING.md). Demo mode is a synthetic screen and never controls your computer.
 
-## What is here
+## Desktop / remote-access work (0.2 alpha)
+
+The repository now includes a styled PySide6 desktop window, tray controls, device
+revocation, launch-at-login, keep-awake, and per-user installer build. The existing
+phone interface is retained. `start.ps1` now opens the desktop app; use `-Headless`
+for the original CLI. Install `[desktop,media]` for the complete source build.
+
+WebRTC video/control is preferred when media dependencies are installed; the JPEG
+path remains available for compatibility. The new transport removes the JPEG
+per-frame acknowledgement round trip. Encoding is currently software-based;
+GPU capture is attempted for a single Windows display with MSS fallback. No
+hardware encoding or physical-device latency improvement is claimed yet.
+
+Optional remote access uses the included [Cloudflare service](cloud/README.md),
+pinned device keys, explicit laptop approval, and TURN fallback. **The service is
+not deployed by cloning this repo.** A hosted origin and provider secrets must be
+configured. Public installers can bundle that origin; users then only scan/approve.
+
+Phone camera/mic forwarding and laptop audio playback have opt-in media paths.
+Camera/mic adapters currently require installed virtual devices on Windows;
+**bundled Deskpad Camera/Microphone drivers are not implemented**. This is not yet
+a verified Zoom-ready release. Read [release gates](docs/NEXT-RELEASE.md),
+[threat model](docs/REMOTE-THREAT-MODEL.md), and [third-party notices](THIRD-PARTY-NOTICES.md).
+
+The original local alpha behavior is documented below. Where it differs, the
+0.2 notes above and Cloudflare guide describe the current implementation.
+
+## Original local alpha
 
 - Edge-to-edge desktop fitted to width, with pinch zoom/pan preserved when the keyboard opens.
 - Slim, resizable trackpad with tap, two-finger right click, scrolling, long-press drag, and double-tap drag. Pointer speed defaults to 4×, adjustable from 2.5× to 7×.
@@ -32,7 +59,7 @@ The script installs the Python dependencies into `.venv`, installs/builds the ph
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]" -c requirements.lock
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,desktop,media]" -c requirements.lock
 cd web
 npm ci
 npm run build
@@ -87,7 +114,7 @@ Portrait keeps a separate trackpad beneath the screen. Landscape hides that trac
 
 The landscape bar collapses to a shorter rail with small branding, Mouse/View controls, a keyboard button, and an expand button. Collapse state is remembered. Landscape starts with the keyboard tucked away; open it explicitly when needed. Rotating back restores the portrait view and trackpad preferences, and attempts to restore keyboard focus if it was previously open. Safari may require a keyboard tap after rotation. Each orientation keeps its own in-session zoom/pan state.
 
-## Limits worth knowing
+## Original local transport limits
 
 - **Trusted LAN only.** The initial transport is HTTP/WebSocket, so network traffic is not encrypted. Do not port-forward it or use it on public Wi-Fi. Pairing prevents unauthenticated control; it does not encrypt the stream. See [SECURITY.md](SECURITY.md).
 - Ordinary desktop apps only. Windows UAC prompts, the lock screen, secure attention/Ctrl+Alt+Delete, and apps running at a higher integrity level are unsupported. Do not run the host as administrator as a workaround.

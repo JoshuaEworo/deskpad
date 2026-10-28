@@ -1,0 +1,5 @@
+{
+  "name": "deskpad-service", "private": true, "version": "0.2.0-alpha.1", "type": "module",
+  "scripts": {"check": "tsc --noEmit", "test": "vitest run", "dev": "wrangler dev", "deploy": "wrangler deploy"},
+  "devDependencies": {"@cloudflare/workers-types": "^5.20261028.1", "wrangler": "^4.0.0", "typescript": "^5.9.0", "vitest": "^3.2.0", "miniflare": "^4.0.0"}
+}

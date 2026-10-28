@@ -63,3 +63,36 @@ Record OS versions, display dimensions/scaling, host settings, and observed issu
 
 12. Rotate to landscape with the portrait keyboard open. The portrait pad disappears, keyboard is dismissed, the entire desktop fits above a non-overlapping dock, and proportions stay correct. Collapse/expand the dock and check that the reclaimed space goes to the desktop. Tiny branding appears on the collapsed rail.
 13. In landscape Mouse mode, test relative movement, left/right click, scrolling, and dragging on the desktop surface. Select View: pan/pinch must produce no PC input. Switch modes while holding a drag/modifier, then rotate back; no held input may remain. Confirm portrait zoom, pad settings, and keyboard intent are restored. On iPhone, record whether a tap is required to show the keyboard after rotation.
+
+
+## Desktop / hosted / media alpha acceptance
+
+Install `.[dev,desktop,media]` and build `web/`. `deskpad-desktop --demo` renders
+the desktop companion while preserving synthetic input. `--screenshot <path>`
+is a developer-only rendering helper that bypasses the single-instance socket.
+
+The Chromium suite includes WebRTC video/input, signed pairing with explicit
+approval, remembered reconnect, and fake-device camera/mic forwarding and cleanup.
+The test host has test-only routes and loopback ICE overrides; never distribute it.
+Cloud tests run via `npm ci && npm run check && npm test` in `cloud/`.
+
+Before release, verify on Windows 10 and 11 with an actual iPhone:
+
+1. Installer → Start menu → QR → pairing. Closing hides only when a tray exists;
+   Quit stops capture, sockets, media adapters, and releases all held input.
+2. Multiple app launches bring forward the existing window. Port collisions and
+   missing media devices produce useful errors without a hidden orphan host.
+3. DPI scaling 100/150/200%, multiple monitors, display resize, sleep/resume,
+   Wi-Fi changes, launching at login, firewall permissions, and standard-user mode.
+4. Cloudflare staging: Turnstile enrollment, same-LAN direct, Wi-Fi ↔ cellular
+   direct, forced TURN relay, provider outage, host offline and resumed connection.
+5. Pairing invitation expiry; wrong/mismatched code; rejected/revoked phone;
+   captured message replay; changed host identity; concurrent controller attempts.
+6. Camera front/back switching and preview, phone mic to Zoom recording input,
+   Zoom/system audio to phone speaker/headphones, echo, mute/unmute, device unplug,
+   background/foreground, permission denial, and interrupted calls. Verify media
+   stops on uncheck, pause, revoke, disconnect, and host shutdown.
+7. Measure displayed latency with a filmed input-to-screen event. Record capture,
+   encode, network RTT, decode/jitter separately; input RTT alone is not video delay.
+8. Test virtual-device distribution and signing on a clean machine. Existing
+   installed OBS/cable bridges are development adapters, not shipped Deskpad devices.

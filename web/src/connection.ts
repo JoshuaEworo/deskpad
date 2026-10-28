@@ -2,7 +2,18 @@ import type { Frame, Input } from "./protocol";
 
 type State =
   "connecting" | "connected" | "disconnected" | "busy" | "unpaired" | "paused";
-type Hooks = {
+export type Hooks = {
+  mediaAllowed?: (allowed: {
+    camera: boolean;
+    microphone: boolean;
+    speakers: boolean;
+  }) => void;
+  mediaError?: (kind: string, error: string) => void;
+  localCamera?: (stream: MediaStream | null) => void;
+  metadata?: (meta: Frame) => void;
+  stream?: (stream: MediaStream, kind: string) => void;
+  pairing?: (code: string) => void;
+  route?: (route: string) => void;
   state: (state: State) => void;
   frame: (blob: Blob, meta: Frame) => Promise<void>;
   cursor: (position: [number, number]) => void;

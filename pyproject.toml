@@ -4,17 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deskpad"
-version = "0.1.0a1"
+version = "0.2.0a1"
 description = "Your desktop above. Your controls below."
 requires-python = ">=3.11"
 license = "MIT"
-dependencies = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1", "pillow>=11,<13", "mss>=10,<11", "qrcode>=8,<9"]
+dependencies = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1", "pillow>=11,<13", "mss>=10,<11", "qrcode>=8,<9", "cryptography>=44,<48", "httpx>=0.28,<1", "websockets>=14,<18"]
 
 [project.optional-dependencies]
+desktop = ["PySide6-Essentials>=6.8,<7"]
+media = ["aiortc>=1.14,<2", "numpy>=2,<3", "soundcard>=0.4,<1", "sounddevice>=0.5,<1", "pyvirtualcam>=0.14,<1", "dxcam>=0.0.5,<1; sys_platform == 'win32'"]
 dev = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.11,<1"]
 
 [project.scripts]
 deskpad = "deskpad.cli:main"
+deskpad-desktop = "deskpad.desktop:main"
 
 [tool.setuptools]
 package-dir = {"" = "host"}
@@ -24,7 +27,7 @@ where = ["host"]
 include = ["deskpad*"]
 
 [tool.setuptools.package-data]
-deskpad = ["static/**/*", "static/*"]
+deskpad = ["static/**/*", "static/*", "deployment.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["host/tests"]

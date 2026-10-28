@@ -705,3 +705,43 @@ dialog textarea {
 .landscape.dock-collapsed .keyboard-button {
   font-size: 16px;
 }
+
+#desktop-video {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+  pointer-events: none;
+}
+#desktop-video[hidden] {
+  display: none;
+}
+.media-controls {
+  border-top: 1px solid var(--border, #34483c);
+  margin-top: 12px;
+  padding-top: 8px;
+}
+#remote-pair {
+  display: grid;
+  gap: 12px;
+}
+#remote-pair[hidden] {
+  display: none;
+}
+#phone-name {
+  width: 100%;
+  padding: 12px;
+  background: #17221b;
+  border: 1px solid #34483c;
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+}
+
+#camera-preview {
+  width: 100%;
+  max-height: 150px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #090e0b;
+}

@@ -1,0 +1,79 @@
+name: Publish tested desktop release
+on:
+  workflow_dispatch:
+    inputs:
+      source_run:
+        description: Successful main-branch Windows build run ID
+        required: true
+        default: '40746328516'
+      release_tag:
+        description: Version tag matching that build
+        required: true
+        default: v0.2.0-alpha.2
+permissions:
+  contents: read
+concurrency:
+  group: desktop-release-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: releases
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Validate source build and checks
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.source_run }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$REPO/actions/runs/$SOURCE_RUN" > run.json
+          jq -e '.name == "Windows build" and .head_branch == "main" and .event == "push" and .status == "completed" and .conclusion == "success"' run.json
+          source_sha=$(jq -r .head_sha run.json)
+          gh api "repos/$REPO/actions/runs?head_sha=$source_sha&event=push&per_page=100" > checks.json
+          jq -e '.workflow_runs | any(.name == "Checks" and .status == "completed" and .conclusion == "success")' checks.json
+          echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . -c requirements.lock
+      - uses: actions/download-artifact@v4
+        with:
+          name: Deskpad-Windows-x64
+          path: release
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
+      - name: Sign update metadata
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          DESKPAD_UPDATE_SIGNING_KEY: ${{ secrets.DESKPAD_UPDATE_SIGNING_KEY }}
+        run: python scripts/sign_update.py
+      - name: Publish release and channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          flags=()
+          if [[ "$RELEASE_TAG" == *-alpha.* ]]; then flags+=(--prerelease); fi
+          # Refuse to overwrite an existing version: each release is immutable by policy.
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'This version is already published. Publish a new version instead.' >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" release/Deskpad-Setup-Windows-x64.exe release/Deskpad-Windows-x64.zip release/update.json --target "$SOURCE_SHA" --title "Deskpad $RELEASE_TAG" --notes-file RELEASE-NOTES.md "${flags[@]}"
+          if ! gh release view update-channel >/dev/null 2>&1; then
+            gh release create update-channel --target "$SOURCE_SHA" --prerelease --title "Deskpad update channel" --notes "Signed desktop update metadata. Download installers from versioned releases."
+          fi
+          gh release upload update-channel release/update.json --clobber

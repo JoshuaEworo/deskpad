@@ -25,12 +25,13 @@ upgrade/failure-path acceptance remains a release gate.
 
 ## One-time maintainer activation
 
-The repository is currently private and the pinned key is intentionally empty.
+The repository is currently private. A public update verification key is pinned;
+the private key backup is stored separately and has not been entered in GitHub.
 No update channel is live until the following setup is complete. Do not distribute
 an initial updater build before pinning its public key; existing apps cannot safely
 learn a new signing key from unsigned network configuration.
 
-1. In the development environment run `python scripts/create_update_key.py PATH`
+1. For a fresh independent fork, run `python scripts/create_update_key.py PATH`
    with a private backup path **outside this repository**. This pins only the public
    key in `host/deskpad/update-key.json`; the private key file must never be committed.
 2. Store the private file's base64 contents in the GitHub Actions environment

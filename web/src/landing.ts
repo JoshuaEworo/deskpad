@@ -1,5 +1,5 @@
 const installer =
-  "https://github.com/JoshuaEworo/deskpad/releases/download/v0.2.0-alpha.5/Deskpad-Setup-Windows-x64.exe";
+  "https://github.com/JoshuaEworo/deskpad/releases/download/v0.2.0-alpha.7/Deskpad-Setup-Windows-x64.exe";
 export function landing() {
   document.getElementById("app")!.innerHTML = `
     <div class="landing">
@@ -17,7 +17,7 @@ export function landing() {
       <section class="landing-steps" aria-label="Getting started">
         <article><span>01</span><h2>Install on your laptop</h2><p>Download Deskpad and open the desktop app.</p></article>
         <article><span>02</span><h2>Scan with your phone</h2><p>Open this site on your phone and scan the laptop’s QR.</p></article>
-        <article><span>03</span><h2>Approve & settle in</h2><p>Match the code on your laptop. Your phone becomes your screen, trackpad, and keyboard.</p></article>
+        <article><span>03</span><h2>Approve & settle in</h2><p>Approve the pairing request on your laptop. Your phone becomes your screen, trackpad, and keyboard.</p></article>
       </section>
       <footer>Pairing stays under your control. Use Local only on your Wi-Fi, or Anywhere when you’re away.<br>
         <a href="https://github.com/JoshuaEworo/deskpad/releases">All releases</a> · <a href="https://github.com/JoshuaEworo/deskpad/issues">Report an issue</a></footer>

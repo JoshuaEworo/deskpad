@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from .input import InputSession
 from .media_setup import media_permissions
-from .protocol import INPUT_ADAPTER, MediaState, Ping
+from .protocol import INPUT_ADAPTER, Display, MediaState, Ping
 
 log = logging.getLogger("deskpad")
 
@@ -105,7 +105,12 @@ class Peer:
                 except ValidationError:
                     self.send({"type": "error", "message": "Unsupported input message."})
                     continue
-                if isinstance(message, MediaState):
+                if isinstance(message, Display):
+                    try:
+                        await self.hub.configure_display(message)
+                    except ValueError as error:
+                        self.send({"type": "error", "message": str(error)})
+                elif isinstance(message, MediaState):
                     kind = {"camera": "video", "microphone": "audio", "speakers": "speakers"}[
                         message.kind
                     ]
@@ -290,6 +295,18 @@ class RtcHub:
             await peer.close()
             raise
 
+    async def configure_display(self, message):
+        if self.paused():
+            return
+        bounds = await asyncio.get_running_loop().run_in_executor(
+            self.executor, self.capture.configure_display, message.monitor, message.follow_cursor
+        )
+        if bounds:
+            # Only an explicit display selection may reposition the cursor, once.
+            await asyncio.get_running_loop().run_in_executor(
+                self.input_executor, self.native.focus_display, bounds
+            )
+
     async def close(self):
         await asyncio.gather(*(p.close() for p in list(self.peers.values())))
 
@@ -308,9 +325,15 @@ def desktop_track(hub, peer):
             now = time.monotonic()
             await asyncio.sleep(max(0, self.next_frame - now))
             self.next_frame = time.monotonic() + 1 / hub.settings.fps
-            image, bounds = await asyncio.get_running_loop().run_in_executor(
-                hub.executor, hub.capture.image
-            )
+            try:
+                image, bounds = await asyncio.get_running_loop().run_in_executor(
+                    hub.executor, hub.capture.image
+                )
+            except Exception:
+                peer.send({"type": "error", "message": "Display unavailable. Reconnecting…"})
+                # Do not await pc.close from its sender's own frame task.
+                asyncio.create_task(peer.close())
+                raise
             frame = VideoFrame.from_image(image)
             frame.pts = int((time.monotonic() - self.start) * 90000)
             frame.time_base = Fraction(1, 90000)
@@ -322,6 +345,7 @@ def desktop_track(hub, peer):
                     "height": image.height,
                     "bounds": bounds,
                     "cursor": hub.native.position(),
+                    **hub.capture.view_info,
                 }
             )
             return frame

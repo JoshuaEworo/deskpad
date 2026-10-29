@@ -1,6 +1,7 @@
 """Platform boundary: native Windows SendInput, or a harmless demo adapter."""
 
 import ctypes
+import math
 import sys
 from collections import deque
 
@@ -39,18 +40,45 @@ EXTENDED = {
 }
 
 
+class RelativeMotion:
+    """Keep subpixel intent without issuing stationary Windows cursor writes."""
+
+    def __init__(self):
+        self.x = self.y = 0.0
+
+    def take(self, dx, dy):
+        self.x += dx
+        self.y += dy
+        x, y = math.trunc(self.x), math.trunc(self.y)
+        self.x -= x
+        self.y -= y
+        return (x, y) if x or y else None
+
+    def clear(self):
+        self.x = self.y = 0.0
+
+
 class DemoInput:
     def __init__(self):
         self.events = deque(maxlen=200)
         self.x, self.y = 600, 350
+        self.motion = RelativeMotion()
 
     def position(self):
         return self.x, self.y
 
     def move(self, dx, dy):
-        self.x = max(0, min(1279, self.x + round(dx)))
-        self.y = max(0, min(719, self.y + round(dy)))
+        movement = self.motion.take(dx, dy)
+        if not movement:
+            return
+        self.x += movement[0]
+        self.y += movement[1]
         self.events.append(("move", dx, dy))
+
+    def focus_display(self, bounds):
+        self.motion.clear()
+        self.x = bounds["left"] + bounds["width"] // 2
+        self.y = bounds["top"] + bounds["height"] // 2
 
     def button(self, button, down):
         self.events.append(("button", button, down))
@@ -112,6 +140,7 @@ class WindowsInput:
         self.user.SetCursorPos.argtypes = [ctypes.c_int, ctypes.c_int]
         self.user.SetCursorPos.restype = w.BOOL
         self.Point = w.POINT
+        self.motion = RelativeMotion()
 
     def _send(self, event):
         if self.user.SendInput(1, ctypes.byref(event), ctypes.sizeof(self.Input)) != 1:
@@ -126,9 +155,23 @@ class WindowsInput:
         return p.x, p.y
 
     def move(self, dx, dy):
+        movement = self.motion.take(dx, dy)
+        if movement:
+            x, y = self.position()
+            if not self.user.SetCursorPos(x + movement[0], y + movement[1]):
+                raise ctypes.WinError(ctypes.get_last_error())
+
+    def focus_display(self, bounds):
+        self.motion.clear()
         x, y = self.position()
-        if not self.user.SetCursorPos(x + round(dx), y + round(dy)):
-            raise ctypes.WinError(ctypes.get_last_error())
+        if not (
+            bounds["left"] <= x < bounds["left"] + bounds["width"]
+            and bounds["top"] <= y < bounds["top"] + bounds["height"]
+        ):
+            if not self.user.SetCursorPos(
+                bounds["left"] + bounds["width"] // 2, bounds["top"] + bounds["height"] // 2
+            ):
+                raise ctypes.WinError(ctypes.get_last_error())
 
     def button(self, button, down):
         flag = {("left", True): 2, ("left", False): 4, ("right", True): 8, ("right", False): 16}[

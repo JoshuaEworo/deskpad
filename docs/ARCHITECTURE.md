@@ -46,7 +46,7 @@ Native calls are intentionally narrow. No shell, process launch, arbitrary hotke
 
 VisualViewport events size the app to the space actually visible above the native keyboard. This does not rely on the Chromium-only VirtualKeyboard API. A real focusable 16px contenteditable input sink accepts native text without occupying a visible typing row. Composition stays local until commit; paste is handled as plaintext. Pairing transfers focus synchronously during the Connect gesture, before network awaits. A previously paired page offers a single keyboard tap because Safari does not guarantee software-keyboard opening without a user gesture. Native keyboard behavior must still be tested on physical iOS.
 
-The desktop viewer derives its base dimensions from width only. A shorter keyboard-visible viewport clips/pans the viewer if necessary, rather than shrinking its width or clearing zoom. Pan bounds use the actual scaled image dimensions. Trackpad height is a separate pixel preference (default 80px), capped on short viewports; old percentage-based screen sizing is intentionally not reused. The connected layout has no header, status row, visible input box, or footer. Tiny branding/status and a menu overlay the desktop. Optional mouse controls and detailed actions stay in the menu. An optional scroll wheel occupies a 40px rail beside the trackpad, sharing its height; it preserves keyboard focus and uses the same natural-scroll direction. Pointer speed defaults to 4× with a 2.5×–7× range. Existing speeds below the new minimum migrate to 4×; valid saved speeds remain unchanged.
+The desktop viewer derives its base dimensions from width only. A shorter keyboard-visible viewport clips/pans the viewer if necessary, rather than shrinking its width or clearing zoom. Pan bounds use the actual scaled image dimensions. Trackpad height is a separate pixel preference (default 80px), capped on short viewports; old percentage-based screen sizing is intentionally not reused. The connected layout has no header, status row, visible input box, or footer. Tiny branding/status and a Settings entry overlay the desktop. Settings is a separate full-viewport tabbed view with safe-area navigation and a scrolling panel. Quick actions share the hotkey bar; optional mouse/scroll controls are preferences in the Pointer tab. An optional scroll wheel occupies a 40px rail beside the trackpad, sharing its height; it preserves keyboard focus and uses the same natural-scroll direction. Pointer speed defaults to 4× with a 2.5×–7× range. Existing speeds below the new minimum migrate to 4×; valid saved speeds remain unchanged.
 
 Two-finger viewer gestures snapshot the initial midpoint, distance, zoom, and pan. Each move maps the same image point to the current midpoint, allowing focal zoom and two-finger panning. Computing from the gesture start avoids drift from sequential per-finger events and intermediate edge clamping. Final pan is constrained to image bounds.
 
@@ -98,3 +98,27 @@ media track switching, bounded input, and reconnect. `DesktopViewer` and gesture
 code are unchanged. `media_devices.py` isolates Windows virtual camera/audio and
 loopback adapters; host and phone must independently opt in. Native-device
 distribution remains a release gate, rather than a fake successful toggle.
+
+
+## Display routing and hover stability
+
+Capture owns topology detection, selection and MSS lifetime on its single worker.
+Topology refreshes every two seconds so a removed display falls back safely.
+Frame metadata carries the active display and its bounds. Automatic following
+chooses the display containing the physical cursor and never moves that cursor.
+An explicit phone selection validates the detected display on the capture worker,
+then focuses it once on the input worker if the cursor is outside its bounds.
+A short handoff grace period prevents capture from switching back before focus.
+DXGI remains limited to an unambiguous single-output mapping; other layouts use MSS.
+
+Windows movement accumulates fractional deltas and skips SetCursorPos entirely
+when no integer movement is needed. Gesture filtering compares against the last
+emitted position, allowing slow intentional travel to accumulate. A long-press
+can begin a drag only if no cursor movement has been emitted since contact began.
+Heartbeat and video metadata only read cursor position. Browser overlay updates
+never force a saved absolute cursor position onto Windows.
+
+If a display disappears during a grab, capture refreshes topology and retries a
+surviving output on the same worker. An unrecoverable RTC capture error closes the
+peer from a separate task, so the phone can reconnect instead of retaining a blank
+live connection. The frame sender never awaits its own shutdown.

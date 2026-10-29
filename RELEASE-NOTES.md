@@ -1,10 +1,13 @@
-Deskpad 0.2.0-alpha.6
+Deskpad 0.2.0-alpha.7
 
-- Reorganizes the desktop pairing card into a compact two-column layout.
-- Places the QR countdown and a small refresh action together beneath the QR.
-- Keeps the address and access selector alongside the pairing instructions.
-- Shows the six-digit entry code only in Local only mode.
-- Clarifies Anywhere pairing: request on the phone, then approve on the laptop.
-- Hides unused PIN space rather than leaving a blank code row.
+- Uses the approved compact pairing card with one instruction per mode.
+- Replaces the phone popup with a full settings page and Pointer, Display, Media and Session tabs.
+- Keeps navigation visible while a settings panel scrolls, with a bottom Back to controls button.
+- Moves Fit, Drag lock and shortcuts into a quick-actions row on the control bar.
+- Removes Forget this phone from the phone; paired-device access is managed on the laptop.
+- Detects displays automatically, follows the physical cursor by default, and offers manual selection beside the keyboard.
+- Allows cursor-follow to be disabled from the phone, without a desktop monitor-number setting.
+- Avoids stationary Windows cursor writes, preserves fractional movement, filters touch noise, and prevents a small cursor adjustment from becoming a long-press drag.
 
-Settings and paired phones are preserved by the installer.
+Physical Windows hover behavior, mixed-DPI monitors and real hotplug still need
+device acceptance; simulated tests do not verify those physical behaviors.

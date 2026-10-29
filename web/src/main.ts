@@ -1,6 +1,5 @@
 import "./style.css";
 import { Connection } from "./session";
-import { forgetRemote } from "./remote-identity";
 import { TrackpadGesture } from "./gestures";
 import { attachKeyboard } from "./keyboard";
 import type { Frame } from "./protocol";
@@ -36,6 +35,51 @@ let frame: Frame | undefined,
 let desiredConnection = false;
 const modifiers = new Set<string>();
 let dragLocked = false;
+
+let displayPreferencesApplied = false;
+let displaySignature = "";
+let activeDisplay: number | undefined;
+let monitorKeyboardRestore = false;
+function updateDisplays(metadata: Frame) {
+  const displays = metadata.displays;
+  if (!displays?.length) return;
+  const multiple = displays.length > 1;
+  $("display-control").hidden = !multiple;
+  const selector = $<HTMLSelectElement>("monitor-switch");
+  const signature = JSON.stringify(
+    displays.map((d) => [d.id, d.width, d.height]),
+  );
+  if (signature !== displaySignature) {
+    displaySignature = signature;
+    selector.replaceChildren(
+      ...displays.map((display) => {
+        const option = new Option(String(display.id), String(display.id));
+        option.setAttribute(
+          "aria-label",
+          `${display.name}, ${display.width} by ${display.height}`,
+        );
+        return option;
+      }),
+    );
+  }
+  if (activeDisplay !== undefined && activeDisplay !== metadata.monitor)
+    viewer.reset();
+  activeDisplay = metadata.monitor;
+  selector.value = String(metadata.monitor);
+  selector.title = `Display ${metadata.monitor} of ${displays.length}`;
+  $("display-details").textContent =
+    `${displays.length} ${multiple ? "displays" : "display"} detected. Viewing Display ${metadata.monitor}.`;
+  const follow = $<HTMLInputElement>("follow-cursor");
+  follow.disabled = !multiple;
+  const preferred = localStorage.getItem("deskpad.followCursor");
+  follow.checked =
+    preferred === null ? metadata.followCursor !== false : preferred === "true";
+  if (!displayPreferencesApplied) {
+    displayPreferencesApplied = true;
+    if (preferred !== null && (preferred === "true") !== metadata.followCursor)
+      connection.send({ type: "display", follow_cursor: preferred === "true" });
+  }
+}
 
 function drawCursor() {
   if (!frame) return;
@@ -97,6 +141,8 @@ const connection = new Connection({
   },
   ended: showEnded,
   state(state) {
+    if (state !== "connected") displayPreferencesApplied = false;
+    $<HTMLSelectElement>("monitor-switch").disabled = state !== "connected";
     $<HTMLButtonElement>("remote-connect").disabled = state === "connecting";
     const labels = {
       connecting: "Connecting…",
@@ -141,6 +187,7 @@ const connection = new Connection({
       );
   },
   async frame(blob, metadata) {
+    updateDisplays(metadata);
     const url = URL.createObjectURL(blob);
     const image = new Image();
     image.src = url;
@@ -205,6 +252,7 @@ const connection = new Connection({
     if (stream) void preview.play().catch(() => {});
   },
   metadata(metadata) {
+    updateDisplays(metadata);
     frame = metadata;
     position = metadata.cursor;
     viewer.setAspect(metadata.width, metadata.height);
@@ -342,7 +390,6 @@ document
         type: "shortcut",
         keys: button.dataset.shortcut!.split(","),
       });
-      closeSettings();
     }),
   );
 
@@ -371,7 +418,6 @@ $("drag-lock").addEventListener("click", () => {
     action: dragLocked ? "down" : "up",
   });
   $("drag-lock").setAttribute("aria-pressed", String(dragLocked));
-  closeSettings();
 });
 
 function keyboard(open: boolean) {
@@ -401,13 +447,19 @@ function openSettings() {
   keyboard(false);
   releaseInputs();
   $("settings").hidden = false;
+  $("workspace").inert = true;
+  document.querySelector<HTMLElement>(".topbar")!.inert = true;
   $("settings-toggle").setAttribute("aria-expanded", "true");
   $("settings-close").focus({ preventScroll: true });
 }
 function closeSettings(resume = true) {
+  const wasOpen = !$("settings").hidden;
   $("settings").hidden = true;
+  $("workspace").inert = false;
+  document.querySelector<HTMLElement>(".topbar")!.inert = false;
   $("settings-toggle").setAttribute("aria-expanded", "false");
-  if (resume && restoreKeyboard && desiredConnection) keyboard(true);
+  if (wasOpen && resume && restoreKeyboard && desiredConnection) keyboard(true);
+  restoreKeyboard = false;
 }
 $("paste-text").addEventListener("click", () => {
   closeSettings(false);
@@ -510,7 +562,6 @@ wheel.addEventListener("keydown", (event) => {
 });
 $("reset-view").addEventListener("click", () => {
   viewer.reset();
-  closeSettings();
 });
 
 function setControlMode(mode: "mouse" | "view") {
@@ -609,6 +660,37 @@ $("brand-status").addEventListener("click", openSettings);
 $("rail-brand").addEventListener("click", openSettings);
 $("landscape-settings").addEventListener("click", openSettings);
 $("settings-close").addEventListener("click", () => closeSettings());
+$("settings-done").addEventListener("click", () => closeSettings());
+const settingTabs = Array.from(
+  document.querySelectorAll<HTMLButtonElement>("[data-panel]"),
+);
+function selectSettingsTab(tab: HTMLButtonElement) {
+  for (const item of settingTabs) {
+    const selected = item === tab;
+    item.setAttribute("aria-selected", String(selected));
+    item.tabIndex = selected ? 0 : -1;
+    $(`panel-${item.dataset.panel}`).hidden = !selected;
+  }
+  $("settings").querySelector(".settings-body")!.scrollTop = 0;
+}
+for (const [index, tab] of settingTabs.entries()) {
+  tab.addEventListener("click", () => selectSettingsTab(tab));
+  tab.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? settingTabs.length - 1
+          : (index +
+              (event.key === "ArrowRight" ? 1 : -1) +
+              settingTabs.length) %
+            settingTabs.length;
+    selectSettingsTab(settingTabs[next]);
+    settingTabs[next].focus();
+  });
+}
 $("settings").addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     event.preventDefault();
@@ -626,30 +708,6 @@ $("reconnect").addEventListener("click", () => {
   desiredConnection = true;
   connection.start();
   closeSettings();
-});
-$("forget").addEventListener("click", async () => {
-  desiredConnection = false;
-  connection.stop();
-  if (connection.remote) {
-    forgetRemote();
-    location.reload();
-    return;
-  }
-  const result = await fetch("/api/forget", { method: "POST" });
-  if (!result.ok) {
-    toast("Could not forget this phone. Check the host.");
-    return;
-  }
-  $("settings").hidden = true;
-  $("pair-form").hidden = false;
-  $("session-resume").hidden = true;
-  $("pair-title").textContent = "Pair this phone";
-  $("local-pair-description").textContent =
-    "Enter the six-digit code shown on your laptop.";
-  $("workspace").hidden = true;
-  $("pairing").hidden = false;
-  $("app").classList.remove("in-session");
-  keyboard(false);
 });
 
 function enterWorkspace(demo: boolean) {
@@ -795,3 +853,32 @@ $("scan-qr").addEventListener("click", () => {
 });
 
 $("session-resume").addEventListener("click", () => enterWorkspace(false));
+
+$("monitor-switch").addEventListener("pointerdown", () => {
+  monitorKeyboardRestore = keyboardWanted;
+  releaseInputs();
+});
+$("monitor-switch").addEventListener("change", () => {
+  connection.send({
+    type: "display",
+    monitor: Number($<HTMLSelectElement>("monitor-switch").value),
+  });
+  if (monitorKeyboardRestore) keyboard(true);
+  monitorKeyboardRestore = false;
+});
+$("follow-cursor").addEventListener("change", () => {
+  const follow = $<HTMLInputElement>("follow-cursor").checked;
+  localStorage.setItem("deskpad.followCursor", String(follow));
+  connection.send({ type: "display", follow_cursor: follow });
+});
+
+$("actions-toggle").addEventListener("click", () => {
+  const show = $("quick-actions").hidden;
+  $("quick-actions").hidden = !show;
+  $("desktop-keys").hidden = show;
+  $("actions-toggle").setAttribute("aria-expanded", String(show));
+  $("actions-toggle").setAttribute(
+    "aria-label",
+    show ? "Show desktop keys" : "Show quick actions",
+  );
+});

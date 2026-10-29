@@ -17,7 +17,7 @@ from .capture import ScreenCapture
 from .input import InputSession
 from .media_setup import inspect_media
 from .native import DemoInput, WindowsInput
-from .protocol import INPUT_ADAPTER, Ping
+from .protocol import INPUT_ADAPTER, Display, Ping
 from .service import Service
 from .settings import Settings
 
@@ -50,6 +50,8 @@ def create_app(
     pairing = Pairing(state_path)
     native = backend if backend is not None else (DemoInput() if demo else WindowsInput())
     capture = ScreenCapture(demo, monitor, width, quality)
+    capture.cursor = native.position
+    capture.follow_cursor = settings.follow_cursor
     executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="deskpad-capture")
     input_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="deskpad-input")
     setup_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="deskpad-media-setup")
@@ -131,13 +133,16 @@ def create_app(
             if changes.service_url != settings.service_url:
                 if remote:
                     await remote.stop()
+            if (
+                changes.follow_cursor != settings.follow_cursor
+                or changes.monitor != settings.monitor
+            ):
+                await asyncio.get_running_loop().run_in_executor(
+                    executor, capture.configure_display, changes.monitor, changes.follow_cursor
+                )
             for name, val in changes.model_dump().items():
                 setattr(settings, name, val)
-            capture.monitor, capture.width, capture.quality = (
-                settings.monitor,
-                settings.width,
-                settings.quality,
-            )
+            capture.width, capture.quality = settings.width, settings.quality
             if remote and settings.remote:
                 await remote.start()
             elif remote:
@@ -242,7 +247,11 @@ def create_app(
     async def forget(request: Request, response: Response):
         if not same_origin(request):
             raise HTTPException(403)
-        pairing.revoke(request.cookies.get(COOKIE))
+        token = request.cookies.get(COOKIE)
+        pairing.revoke(token)
+        service.update(local_devices=list(pairing.devices))
+        if token and lease["token"] == token:
+            await disconnect("revoked")
         response.delete_cookie(COOKIE)
         return {"paired": False}
 
@@ -310,7 +319,12 @@ def create_app(
                 except ValidationError:
                     await ws.send_json({"type": "error", "message": "Unsupported input message."})
                     continue
-                if isinstance(message, Ping):
+                if isinstance(message, Display):
+                    try:
+                        await rtc.configure_display(message)
+                    except ValueError as error:
+                        await ws.send_json({"type": "error", "message": str(error)})
+                elif isinstance(message, Ping):
                     await ws.send_json({"type": "pong", "timestamp": message.timestamp})
                 else:
                     await asyncio.get_running_loop().run_in_executor(

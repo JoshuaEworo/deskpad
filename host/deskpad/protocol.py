@@ -111,13 +111,19 @@ class MediaState(Message):
     enabled: bool = Field(strict=True)
 
 
+class Display(Message):
+    type: Literal["display"]
+    monitor: int | None = Field(default=None, ge=1, le=32, strict=True)
+    follow_cursor: bool | None = Field(default=None, strict=True)
+
+
 class Ping(Message):
     type: Literal["ping"]
     timestamp: float
 
 
 Input = Annotated[
-    Move | Button | Scroll | Text | Key | Shortcut | Release | Ping | MediaState,
+    Move | Button | Scroll | Text | Key | Shortcut | Release | Ping | MediaState | Display,
     Field(discriminator="type"),
 ]
 INPUT_ADAPTER = TypeAdapter(Input)

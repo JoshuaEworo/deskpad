@@ -150,7 +150,6 @@ def build_window(settings, service, directory, engine):
         QMessageBox,
         QPushButton,
         QScrollArea,
-        QSpinBox,
         QStackedWidget,
         QSystemTrayIcon,
         QVBoxLayout,
@@ -289,33 +288,43 @@ def build_window(settings, service, directory, engine):
             layout.addLayout(heading)
             layout.addWidget(self.status)
             frame, content = card()
+            header = QHBoxLayout()
+            header.addWidget(label("Pair your phone", "section"))
+            header.addStretch()
+            self.local = button("Local only", lambda: self.remote_mode(False))
+            self.anywhere = button("Anywhere", lambda: self.remote_mode(True))
+            header.setSpacing(6)
+            for item in (self.local, self.anywhere):
+                item.setCheckable(True)
+                item.setObjectName("access")
+                header.addWidget(item)
+            content.addLayout(header)
             row = QHBoxLayout()
             row.setSpacing(24)
             qr_column = QVBoxLayout()
-            qr_column.setSpacing(6)
+            qr_column.setSpacing(2)
             self.qr = label("")
             self.qr.setFixedSize(204, 204)
             self.qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
             qr_column.addWidget(self.qr)
             qr_actions = QHBoxLayout()
-            qr_actions.setSpacing(4)
+            qr_actions.setSpacing(3)
+            qr_actions.addStretch()
             self.qr_timer = label("", "muted")
             self.qr_timer.setStyleSheet("font-size:12px;")
-            qr_actions.addWidget(self.qr_timer, 1)
+            qr_actions.addWidget(self.qr_timer)
             refresh = button("↻", lambda: service.command("new-invite"), "quiet")
             refresh.setAccessibleName("Refresh pairing QR")
             refresh.setToolTip("Refresh pairing QR")
-            refresh.setFixedSize(28, 26)
+            refresh.setFixedSize(24, 24)
             qr_actions.addWidget(refresh)
+            qr_actions.addStretch()
             qr_column.addLayout(qr_actions)
             row.addLayout(qr_column)
             text = QVBoxLayout()
-            text.setSpacing(10)
-            text.addWidget(label("Pair your phone", "section"))
-            text.addWidget(
-                label("Scan this QR with your phone camera or the Deskpad scanner.", wrap=True)
-            )
-            self.instructions = label("", "muted", True)
+            text.setSpacing(8)
+            text.addStretch()
+            self.instructions = label("", "", True)
             text.addWidget(self.instructions)
             self.pin = label("", "code")
             text.addWidget(self.pin)
@@ -324,16 +333,6 @@ def build_window(settings, service, directory, engine):
             self.address.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             text.addWidget(self.address)
             text.addStretch()
-            access = QHBoxLayout()
-            access.setSpacing(6)
-            self.local = button("Local only", lambda: self.remote_mode(False))
-            self.anywhere = button("Anywhere", lambda: self.remote_mode(True))
-            for item in (self.local, self.anywhere):
-                item.setCheckable(True)
-                item.setObjectName("access")
-                access.addWidget(item)
-            access.addStretch()
-            text.addLayout(access)
             row.addLayout(text, 1)
             content.addLayout(row)
             self.setup_button = button("Finish remote setup", self.finish_setup, "primary")
@@ -369,9 +368,6 @@ def build_window(settings, service, directory, engine):
             self.name = QLineEdit(settings.name)
             self.url = QLineEdit(settings.service_url)
             self.url.setPlaceholderText("https://your-deskpad.workers.dev")
-            self.monitor = QSpinBox()
-            self.monitor.setRange(1, 32)
-            self.monitor.setValue(settings.monitor)
             self.width = QComboBox()
             self.width.addItems(["960", "1280", "1440", "1920"])
             self.width.setCurrentText(str(settings.width))
@@ -381,7 +377,6 @@ def build_window(settings, service, directory, engine):
             for text, field in (
                 ("Laptop name", self.name),
                 ("Remote service", self.url),
-                ("Monitor", self.monitor),
                 ("Stream width", self.width),
                 ("Target FPS", self.fps),
             ):
@@ -767,7 +762,6 @@ def build_window(settings, service, directory, engine):
                         **settings.model_dump(),
                         "name": self.name.text().strip(),
                         "service_url": self.url.text().strip(),
-                        "monitor": self.monitor.value(),
                         "width": int(self.width.currentText()),
                         "fps": int(self.fps.currentText()),
                         "keep_awake": self.awake.isChecked(),
@@ -856,9 +850,9 @@ def build_window(settings, service, directory, engine):
             self.address.setText(address.removeprefix("https://").removeprefix("http://"))
             self.address.setToolTip(address)
             self.instructions.setText(
-                "Request pairing on your phone, then approve it here."
+                "Scan the QR, then approve on this laptop."
                 if settings.remote
-                else "Enter this code on your phone:"
+                else "Scan the QR or enter this code on your phone."
             )
             self.pin.setVisible(not settings.remote)
             self.pin.setText("" if settings.remote else snapshot["pin"])

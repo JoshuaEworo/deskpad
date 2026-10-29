@@ -1,6 +1,13 @@
 import type { Input } from "./protocol";
 
-type Point = { x: number; y: number; startX: number; startY: number };
+type Point = {
+  x: number;
+  y: number;
+  startX: number;
+  startY: number;
+  anchorX: number;
+  anchorY: number;
+};
 
 /** Pure gesture state machine. All contacts must end before a new gesture starts. */
 export class TrackpadGesture {
@@ -9,6 +16,7 @@ export class TrackpadGesture {
   private travel = 0;
   private maxContacts = 0;
   private dragging = false;
+  private moved = false;
   private lastTap = -Infinity;
   private lastTapPoint = { x: 0, y: 0 };
   speed = 4;
@@ -20,6 +28,7 @@ export class TrackpadGesture {
     if (!this.points.size) {
       this.started = now;
       this.travel = 0;
+      this.moved = false;
       this.maxContacts = 0;
       if (
         now - this.lastTap < 260 &&
@@ -32,7 +41,7 @@ export class TrackpadGesture {
       this.emit({ type: "button", button: "left", action: "up" });
       this.dragging = false;
     }
-    this.points.set(id, { x, y, startX: x, startY: y });
+    this.points.set(id, { x, y, startX: x, startY: y, anchorX: x, anchorY: y });
     this.maxContacts = Math.max(this.maxContacts, this.points.size);
   }
 
@@ -48,7 +57,19 @@ export class TrackpadGesture {
       Math.hypot(x - point.startX, y - point.startY),
     );
     if (this.maxContacts === 1) {
-      this.emit({ type: "move", dx: dx * this.speed, dy: dy * this.speed });
+      const intentX = x - point.anchorX,
+        intentY = y - point.anchorY;
+      // Compare with the last emitted position, so slow deliberate movement
+      // accumulates while a resting finger's subpixel noise does not move the PC.
+      if (Math.hypot(intentX, intentY) < 0.45) return;
+      this.moved = true;
+      point.anchorX = x;
+      point.anchorY = y;
+      this.emit({
+        type: "move",
+        dx: intentX * this.speed,
+        dy: intentY * this.speed,
+      });
     } else if (this.maxContacts === 2 && this.points.size === 2) {
       const direction = this.natural ? 1 : -1;
       // Each contact contributes half of the centroid delta.
@@ -65,6 +86,7 @@ export class TrackpadGesture {
       this.points.size === 1 &&
       this.maxContacts === 1 &&
       this.travel < 7 &&
+      !this.moved &&
       now - this.started >= 350 &&
       !this.dragging
     ) {

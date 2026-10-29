@@ -98,3 +98,14 @@ They only prompt retries while disconnected: they cannot grant/revoke approval,
 change a pinned identity, or interrupt an established peer connection. Every retry
 still performs the signed handshake. Invites rotate after ten minutes independently
 of existing two-minute pending approvals. The desktop displays the remaining time.
+
+
+Display selection uses an authenticated controller input message:
+`{type:"display",monitor?:integer,follow_cursor?:boolean}`. IDs are strictly 1–32
+and must match a currently detected physical display; arbitrary coordinates are
+not accepted. The same handler serves RTC and legacy input transports. Frame
+metadata optionally includes `monitor`, `followCursor` and `displays` (IDs, names,
+bounds). Older hosts omit these fields; the phone hides unsupported controls.
+Display preferences travel over the existing control channel, never an HTTP admin
+endpoint. An explicit selection may center an off-screen cursor on the selected
+display once. Automatic following never writes cursor coordinates.

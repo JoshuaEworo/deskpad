@@ -10,7 +10,7 @@ import uvicorn
 from deskpad.identity import Identity
 from deskpad.server import create_app
 from deskpad.settings import Settings
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import Request, WebSocket, WebSocketDisconnect
 
 if __name__ == "__main__":
     # CI network namespaces may expose only loopback; never patch this in production.
@@ -40,9 +40,43 @@ if __name__ == "__main__":
                     break
                 await asyncio.sleep(0.02)
             app.state.native.events.clear()
+            app.state.native.x, app.state.native.y = 600, 350
+            app.state.native.motion.clear()
+            capture = app.state.rtc.capture
+
+            def reset_displays():
+                capture.demo_displays = [{"left": 0, "top": 0, "width": 1280, "height": 720}]
+                capture._display_refresh = 0
+                capture.monitor, capture.follow_cursor = 1, True
+                capture._manual_until = 0
+
+            await asyncio.get_running_loop().run_in_executor(app.state.rtc.executor, reset_displays)
             app.state.rtc.settings.camera = False
             app.state.rtc.settings.microphone = False
             app.state.rtc.settings.speakers = False
+            return {"ok": True}
+
+        app.router.routes.insert(0, app.router.routes.pop())
+
+        @app.post("/test/displays")
+        async def two_displays():
+            def update():
+                capture = app.state.rtc.capture
+                capture.demo_displays = [
+                    {"left": 0, "top": 0, "width": 1280, "height": 720},
+                    {"left": -1280, "top": 0, "width": 1280, "height": 720},
+                ]
+                capture._display_refresh = 0
+
+            await asyncio.get_running_loop().run_in_executor(app.state.rtc.executor, update)
+            return {"ok": True}
+
+        app.router.routes.insert(0, app.router.routes.pop())
+
+        @app.post("/test/cursor")
+        async def physical_cursor(request: Request):
+            position = await request.json()
+            app.state.native.x, app.state.native.y = position["x"], position["y"]
             return {"ok": True}
 
         app.router.routes.insert(0, app.router.routes.pop())

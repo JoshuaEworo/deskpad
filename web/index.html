@@ -132,7 +132,11 @@
               aria-label="Open settings"
               aria-expanded="false"
             >
-              ···
+              <svg class="settings-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16M4 17h16" />
+                <circle cx="9" cy="7" r="3" />
+                <circle cx="15" cy="17" r="3" />
+              </svg>
             </button>
           </div>
         </div>
@@ -185,7 +189,21 @@
           >
             <i id="rail-status-dot"></i>deskpad
           </button>
-          <div class="key-strip" aria-label="Desktop keys">
+          <button
+            id="actions-toggle"
+            class="actions-toggle"
+            aria-label="Show quick actions"
+            aria-expanded="false"
+            title="Quick actions"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+          </button>
+          <div id="desktop-keys" class="key-strip" aria-label="Desktop keys">
             <button data-key="Escape">esc</button
             ><button data-key="Tab">tab</button>
             <button data-mod="Control" aria-pressed="false">ctrl</button
@@ -211,10 +229,35 @@
             ><button data-key="F11">F11</button
             ><button data-key="F12">F12</button>
           </div>
+          <div
+            id="quick-actions"
+            class="key-strip quick-actions"
+            aria-label="Quick actions"
+            hidden
+          >
+            <button id="reset-view">Fit width</button>
+            <button id="drag-lock" aria-pressed="false">Drag lock</button>
+            <div id="shortcuts" class="shortcuts" aria-label="Shortcuts">
+              <button data-shortcut="Control,c">Copy</button
+              ><button data-shortcut="Control,v">Paste on PC</button
+              ><button data-shortcut="Control,z">Undo</button
+              ><button data-shortcut="Control,y">Redo</button
+              ><button data-shortcut="Control,a">Select all</button
+              ><button data-shortcut="Alt,Tab">Switch app</button
+              ><button id="paste-text">Send text…</button>
+            </div>
+          </div>
           <div class="mode-switch" role="group" aria-label="Screen controls">
             <button id="mouse-mode" aria-pressed="true">Mouse</button
             ><button id="view-mode" aria-pressed="false">View</button>
           </div>
+          <label id="display-control" class="display-control" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="13" rx="2" />
+              <path d="M8 21h8m-4-4v4" />
+            </svg>
+            <select id="monitor-switch" aria-label="Switch display"></select>
+          </label>
           <button
             id="keyboard-toggle"
             class="keyboard-button"
@@ -229,7 +272,11 @@
             class="landscape-menu"
             aria-label="Open landscape settings"
           >
-            ···
+            <svg class="settings-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16M4 17h16" />
+              <circle cx="9" cy="7" r="3" />
+              <circle cx="15" cy="17" r="3" />
+            </svg>
           </button>
           <button
             id="bar-toggle"
@@ -255,121 +302,213 @@
         spellcheck="false"
         tabindex="-1"
       ></div>
-      <aside
+      <section
         id="settings"
         class="settings"
         hidden
-        role="dialog"
-        aria-modal="true"
         aria-labelledby="settings-title"
       >
-        <div class="settings-header">
-          <h2 id="settings-title">deskpad</h2>
-          <button id="settings-close" aria-label="Close settings">✕</button>
-        </div>
-        <div class="connection-details">
-          <span id="connection-detail">Connecting…</span
-          ><span id="metrics">LOCAL CONNECTION</span>
-        </div>
-        <div class="menu-actions">
-          <button id="reset-view">Fit width</button
-          ><button id="drag-lock" aria-pressed="false">Drag lock</button
-          ><button id="reconnect" aria-label="Reconnect">Reconnect</button>
-        </div>
-        <label class="check-row"
-          ><input id="show-mouse-buttons" type="checkbox" /> Show mouse
-          buttons</label
+        <header class="settings-header">
+          <button id="settings-close" aria-label="Close settings">←</button>
+          <h2 id="settings-title">Settings</h2>
+          <span class="settings-brand">deskpad</span>
+        </header>
+        <nav
+          class="settings-tabs"
+          role="tablist"
+          aria-label="Settings categories"
         >
-        <label class="check-row"
-          ><input id="show-scroll-wheel" type="checkbox" /> Show scroll
-          wheel</label
-        >
-        <label for="sensitivity"
-          >Pointer speed <output id="speed-value">4.0×</output></label
-        ><input
-          id="sensitivity"
-          type="range"
-          min="2.5"
-          max="7"
-          step="0.1"
-          value="4"
-        />
-        <label class="check-row"
-          ><input id="natural-scroll" type="checkbox" checked /> Natural
-          scrolling</label
-        >
-        <div
-          class="media-controls"
-          role="group"
-          aria-label="Phone camera and audio"
-        >
-          <label class="check-row"
-            ><input
-              id="phone-camera"
-              aria-describedby="phone-camera-help"
-              type="checkbox"
-              disabled
-            />
-            Use phone camera</label
+          <button
+            id="tab-pointer"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-pointer"
+            data-panel="pointer"
           >
-          <p id="phone-camera-help" class="settings-help">
-            Connect to check camera setup.
-          </p>
-          <label class="check-row"
-            ><input
-              id="phone-microphone"
-              aria-describedby="phone-microphone-help"
-              type="checkbox"
-              disabled
-            />
-            Use phone microphone</label
+            Pointer
+          </button>
+          <button
+            id="tab-display"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-display"
+            data-panel="display"
+            tabindex="-1"
           >
-          <p id="phone-microphone-help" class="settings-help">
-            Connect to check microphone setup.
-          </p>
-          <label class="check-row"
-            ><input
-              id="phone-speaker"
-              aria-describedby="phone-speaker-help"
-              type="checkbox"
-              disabled
-            />
-            Hear laptop audio</label
+            Display
+          </button>
+          <button
+            id="tab-media"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-media"
+            data-panel="media"
+            tabindex="-1"
           >
-          <p id="phone-speaker-help" class="settings-help">
-            Connect to check laptop audio setup.
-          </p>
-          <button id="flip-camera">Switch front / back camera</button>
-          <video
-            id="camera-preview"
-            muted
-            playsinline
-            autoplay
+            Media
+          </button>
+          <button
+            id="tab-session"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-session"
+            data-panel="session"
+            tabindex="-1"
+          >
+            Session
+          </button>
+        </nav>
+        <div class="settings-body">
+          <section
+            id="panel-pointer"
+            role="tabpanel"
+            aria-labelledby="tab-pointer"
+          >
+            <h3>Make it feel right</h3>
+            <label class="check-row"
+              ><input id="show-mouse-buttons" type="checkbox" /> Show mouse
+              buttons</label
+            >
+            <label class="check-row"
+              ><input id="show-scroll-wheel" type="checkbox" /> Show scroll
+              wheel</label
+            >
+            <label for="sensitivity"
+              >Pointer speed <output id="speed-value">4.0×</output></label
+            ><input
+              id="sensitivity"
+              type="range"
+              min="2.5"
+              max="7"
+              step="0.1"
+              value="4"
+            />
+            <label class="check-row"
+              ><input id="natural-scroll" type="checkbox" checked /> Natural
+              scrolling</label
+            >
+
+            <details class="gesture-help">
+              <summary>Trackpad gestures</summary>
+              <p>
+                Tap to click. Two-finger tap to right-click. Two fingers to
+                scroll. Hold, then move to drag. Pull the divider up for more
+                trackpad room.
+              </p>
+            </details>
+          </section>
+          <section
+            id="panel-display"
+            role="tabpanel"
+            aria-labelledby="tab-display"
             hidden
-            aria-label="Phone camera preview"
-          ></video>
-          <p class="settings-help">
-            Your laptop's Settings → Phone camera & audio has setup
-            instructions. Camera and microphone access requires a secure
-            connection.
-          </p>
+          >
+            <h3>Your displays</h3>
+            <p id="display-details" class="settings-help">
+              Connect to detect displays.
+            </p>
+            <label class="check-row"
+              ><input id="follow-cursor" type="checkbox" checked disabled />
+              Follow mouse across displays</label
+            >
+            <p class="settings-help">
+              When the mouse reaches another display, Deskpad follows it. You
+              can also choose a display beside the keyboard button.
+            </p>
+          </section>
+          <section
+            id="panel-media"
+            role="tabpanel"
+            aria-labelledby="tab-media"
+            hidden
+          >
+            <h3>Camera & audio</h3>
+            <div
+              class="media-controls"
+              role="group"
+              aria-label="Phone camera and audio"
+            >
+              <label class="check-row"
+                ><input
+                  id="phone-camera"
+                  aria-describedby="phone-camera-help"
+                  type="checkbox"
+                  disabled
+                />
+                Use phone camera</label
+              >
+              <p id="phone-camera-help" class="settings-help">
+                Connect to check camera setup.
+              </p>
+              <label class="check-row"
+                ><input
+                  id="phone-microphone"
+                  aria-describedby="phone-microphone-help"
+                  type="checkbox"
+                  disabled
+                />
+                Use phone microphone</label
+              >
+              <p id="phone-microphone-help" class="settings-help">
+                Connect to check microphone setup.
+              </p>
+              <label class="check-row"
+                ><input
+                  id="phone-speaker"
+                  aria-describedby="phone-speaker-help"
+                  type="checkbox"
+                  disabled
+                />
+                Hear laptop audio</label
+              >
+              <p id="phone-speaker-help" class="settings-help">
+                Connect to check laptop audio setup.
+              </p>
+              <button id="flip-camera">Switch front / back camera</button>
+              <video
+                id="camera-preview"
+                muted
+                playsinline
+                autoplay
+                hidden
+                aria-label="Phone camera preview"
+              ></video>
+              <p class="settings-help">
+                Your laptop's Settings → Phone camera & audio has setup
+                instructions. Camera and microphone access requires a secure
+                connection.
+              </p>
+            </div>
+          </section>
+          <section
+            id="panel-session"
+            role="tabpanel"
+            aria-labelledby="tab-session"
+            hidden
+          >
+            <h3>This connection</h3>
+            <div class="connection-details">
+              <span id="connection-detail">Connecting…</span
+              ><span id="metrics">LOCAL CONNECTION</span>
+            </div>
+            <button
+              id="reconnect"
+              class="session-action"
+              aria-label="Reconnect"
+            >
+              Reconnect
+            </button>
+            <button id="disconnect" class="session-action">End session</button>
+            <p class="settings-help">
+              Manage or revoke paired phones in Deskpad → Devices on your
+              laptop.
+            </p>
+          </section>
         </div>
-        <div id="shortcuts" class="shortcuts" aria-label="Shortcuts">
-          <button data-shortcut="Control,c">Copy</button
-          ><button data-shortcut="Control,v">Paste on PC</button
-          ><button data-shortcut="Control,z">Undo</button
-          ><button data-shortcut="Control,y">Redo</button
-          ><button data-shortcut="Control,a">Select all</button
-          ><button data-shortcut="Alt,Tab">Switch app</button
-          ><button id="paste-text">Send text…</button>
-        </div>
-        <p class="settings-help">
-          Tap to click. Two-finger tap to right-click. Two fingers to scroll.
-          Hold, then move to drag. Pull the divider up for more trackpad room.
-        </p>
-        <button id="disconnect">End session</button
-        ><button id="forget">Forget this phone</button>
-      </aside>
+        <footer class="settings-footer">
+          <button id="settings-done">Back to controls</button>
+        </footer>
+      </section>
       <dialog id="text-dialog">
         <form method="dialog">
           <h2>Send text to your laptop</h2>

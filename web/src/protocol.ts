@@ -1,4 +1,5 @@
 export type Input =
+  | { type: "display"; monitor?: number; follow_cursor?: boolean }
   | {
       type: "media";
       kind: "camera" | "microphone" | "speakers";
@@ -24,4 +25,14 @@ export type Frame = {
   height: number;
   bounds: { left: number; top: number; width: number; height: number };
   cursor: [number, number];
+  monitor?: number;
+  followCursor?: boolean;
+  displays?: {
+    id: number;
+    name: string;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  }[];
 };

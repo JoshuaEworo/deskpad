@@ -17,7 +17,7 @@ import httpx
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-VERSION = "0.2.0-alpha.6"
+VERSION = "0.2.0-alpha.7"
 MAX_INSTALLER = 300 * 1024 * 1024
 REPOSITORY = "JoshuaEworo/deskpad"
 FEED = f"https://github.com/{REPOSITORY}/releases/download/update-channel/update.json"

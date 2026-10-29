@@ -61,6 +61,8 @@ class InputSession:
             self.buttons.discard(button)
 
     def release(self):
+        if hasattr(self.backend, "motion"):
+            self.backend.motion.clear()
         errors = []
         for key in list(self.keys):
             try:

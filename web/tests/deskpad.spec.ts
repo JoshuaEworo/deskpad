@@ -77,13 +77,22 @@ test("keyboard-first controls keep the desktop full width as the visible viewpor
     await expect
       .poll(async () => (await page.locator("#picture").boundingBox())!.width)
       .toBeCloseTo(390, 0);
-    const screen = (await page.locator("#screen").boundingBox())!;
-    const pad = (await page.locator("#trackpad").boundingBox())!;
-    const controls = (await page.locator(".controls").boundingBox())!;
-    expect(screen.height / height).toBeGreaterThan(0.6);
-    expect(screen.y + screen.height).toBeLessThanOrEqual(pad.y);
-    expect(pad.height).toBeLessThanOrEqual(80);
-    expect(controls.y + controls.height).toBeLessThanOrEqual(height);
+    await expect.poll(() => page.evaluate((visibleHeight) => {
+      const screen = document.querySelector("#screen")!.getBoundingClientRect();
+      const pad = document.querySelector("#trackpad")!.getBoundingClientRect();
+      const controls = document.querySelector(".controls")!.getBoundingClientRect();
+      return {
+        desktopFillsViewport: screen.height / visibleHeight > 0.6,
+        padBelowDesktop: screen.bottom <= pad.top,
+        padFits: pad.height <= 80,
+        controlsFit: controls.bottom <= visibleHeight,
+      };
+    }, height)).toEqual({
+      desktopFillsViewport: true,
+      padBelowDesktop: true,
+      padFits: true,
+      controlsFit: true,
+    });
     await expect(page.locator("#typing")).toBeFocused();
   }
   await page.setViewportSize({ width: 390, height: 530 });
@@ -672,7 +681,9 @@ for (const transport of ["legacy", "rtc"])
 
 test("foregrounding recovers rejected RTC playback with one automatic reconnect", async ({
   page,
+  browserName,
 }) => {
+  test.skip(browserName !== "chromium", "RTC media acceptance runs in Chromium");
   await pair(page, false);
   const video = page.locator("#desktop-video");
   await expect

@@ -126,6 +126,36 @@ test("keyboard-first controls keep the desktop full width as the visible viewpor
   expect(errors).toEqual([]);
 });
 
+test("touching the desktop and trackpad keeps the keyboard open", async ({
+  page,
+}) => {
+  await pair(page);
+  const typing = page.locator("#typing");
+  await expect(typing).toBeFocused();
+
+  await page.locator("#screen").tap({ position: { x: 30, y: 30 } });
+  await expect(typing).toBeFocused();
+  const baseline = (await events(page)).length;
+  await page.locator("#trackpad").tap();
+  await expect(typing).toBeFocused();
+  await expect
+    .poll(async () =>
+      (await events(page))
+        .slice(baseline)
+        .some(
+          ([type, button, down]) =>
+            type === "button" && button === "left" && down === true,
+        ),
+    )
+    .toBe(true);
+
+  await page.getByRole("button", { name: "tab", exact: true }).tap();
+  await expect(typing).toBeFocused();
+  await page.getByRole("button", { name: "Hide keyboard" }).tap();
+  await expect(typing).not.toBeFocused();
+  await expect(page.getByRole("button", { name: "Open keyboard" })).toBeVisible();
+});
+
 test("optional mouse controls and a resizable trackpad remain available without permanent rows", async ({
   page,
 }) => {

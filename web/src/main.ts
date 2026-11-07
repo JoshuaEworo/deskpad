@@ -488,15 +488,21 @@ function keyboard(open: boolean) {
 }
 $("keyboard-toggle").addEventListener("click", () => keyboard(!keyboardWanted));
 typing.addEventListener("blur", () => keyboard(false));
-// Do not let desktop controls dismiss the native keyboard.
-// Menus explicitly manage focus; the scrollable key row stays focus-neutral on touch.
-document
-  .querySelectorAll(
-    ".controls button,.mouse-row button,.session-brand,.menu-button",
+// Remote surfaces handle pointer input themselves. Keep local focus in the
+// typing sink while they do, including when a tap generates mouse events.
+const workspace = $("workspace");
+function keepTypingFocus(event: Event) {
+  const target = event.target as Element;
+  if (
+    document.activeElement === typing &&
+    !target.closest("input, select, textarea, [contenteditable]") &&
+    (event.type !== "touchend" || !target.closest("button, a"))
   )
-  .forEach((button) => {
-    button.addEventListener("pointerdown", (event) => event.preventDefault());
-  });
+    event.preventDefault();
+}
+workspace.addEventListener("pointerdown", keepTypingFocus, { capture: true });
+workspace.addEventListener("mousedown", keepTypingFocus, { capture: true });
+workspace.addEventListener("touchend", keepTypingFocus, { passive: false });
 function openSettings() {
   restoreKeyboard = keyboardWanted;
   keyboard(false);

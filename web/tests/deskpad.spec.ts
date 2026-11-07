@@ -669,3 +669,46 @@ for (const transport of ["legacy", "rtc"])
     ).toBeVisible();
     await page.screenshot({ path: "/tmp/deskpad-toolbar-displays.png" });
   });
+
+test("foregrounding recovers rejected RTC playback with one automatic reconnect", async ({
+  page,
+}) => {
+  await pair(page, false);
+  const video = page.locator("#desktop-video");
+  await expect
+    .poll(() => video.evaluate((el: HTMLVideoElement) => el.paused))
+    .toBe(false);
+  await page.evaluate(() => {
+    const desktop = document.querySelector<HTMLVideoElement>("#desktop-video")!;
+    const play = desktop.play.bind(desktop);
+    desktop.autoplay = false;
+    let playCalls = 0;
+    desktop.play = () => {
+      desktop.dataset.playCalls = String(++playCalls);
+      if (playCalls <= 2)
+        return Promise.reject(
+          new DOMException("Playback blocked", "NotAllowedError"),
+        );
+      return play();
+    };
+    const setHidden = (hidden: boolean) => {
+      Object.defineProperty(document, "hidden", {
+        configurable: true,
+        value: hidden,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    };
+    setHidden(true);
+    window.dispatchEvent(new Event("pagehide"));
+    setHidden(false);
+    window.dispatchEvent(new Event("pageshow"));
+    Reflect.deleteProperty(document, "hidden");
+  });
+  await expect(page.locator("#status")).toHaveText("Connected to laptop");
+  await expect
+    .poll(() => video.evaluate((el: HTMLVideoElement) => el.paused))
+    .toBe(false);
+  await expect(video).toHaveAttribute("data-play-calls", "3");
+  await expect(page.locator("#screen-empty")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Resume video" })).toBeHidden();
+});

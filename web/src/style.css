@@ -96,7 +96,15 @@ button:active {
   font-size: 26px;
   font-weight: 800;
 }
+html:has(.workspace:not([hidden]):not([inert])),
+.workspace,
+.key-strip {
+  touch-action: manipulation;
+}
 .workspace {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -140,6 +148,21 @@ button:active {
   padding: 20px;
   color: var(--muted);
   font-size: 12px;
+}
+#video-recovery {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+#resume-video {
+  pointer-events: auto;
+  padding: 12px 20px;
+  border: 1px solid #527560;
+  border-radius: 8px;
+  background: #22342a;
+  color: var(--mint);
 }
 .screen-overlay {
   position: absolute;

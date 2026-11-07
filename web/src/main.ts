@@ -33,6 +33,63 @@ let frame: Frame | undefined,
   imageUrl = "",
   position: [number, number] = [0, 0];
 let desiredConnection = false;
+let videoRetry: ReturnType<typeof setTimeout>;
+let videoAttempt = 0;
+let videoReconnectUsed = false;
+let videoWasPlaying = false;
+
+function clearDesktopVideo() {
+  clearTimeout(videoRetry);
+  videoAttempt++;
+  videoWasPlaying = false;
+  $("resume-video").hidden = true;
+  desktopVideo.hidden = true;
+  desktopVideo.srcObject = null;
+}
+
+async function playDesktopVideo(
+  attemptKind: "initial" | "retry" | "tap" = "initial",
+) {
+  if (!desktopVideo.srcObject || !desiredConnection || document.hidden) return;
+  clearTimeout(videoRetry);
+  const attempt = ++videoAttempt;
+  const isCurrent = () =>
+    attempt === videoAttempt && desiredConnection && !document.hidden;
+
+  try {
+    await desktopVideo.play();
+    if (isCurrent()) $("resume-video").hidden = true;
+  } catch (error) {
+    if (!isCurrent()) return;
+    console.debug("Deskpad desktop video could not play", error);
+    if (attemptKind === "initial") {
+      // Give the foregrounded browser a moment to settle before replacing the peer.
+      videoRetry = setTimeout(() => void playDesktopVideo("retry"), 350);
+    } else if (attemptKind === "tap" || !videoReconnectUsed) {
+      videoReconnectUsed = true;
+      connection.start();
+    } else {
+      $("screen-empty").textContent = "";
+      $("resume-video").hidden = false;
+    }
+  }
+}
+
+desktopVideo.addEventListener("playing", () => {
+  if (!desktopVideo.srcObject || desktopVideo.paused || document.hidden) return;
+  videoWasPlaying = true;
+  clearTimeout(videoRetry);
+  $("screen-empty").hidden = true;
+  $("resume-video").hidden = true;
+});
+desktopVideo.addEventListener("pause", () => {
+  if (!videoWasPlaying || !desktopVideo.paused) return;
+  videoWasPlaying = false;
+  $("screen-empty").textContent = "Resuming desktop video…";
+  $("screen-empty").hidden = false;
+  void playDesktopVideo();
+});
+$("resume-video").addEventListener("click", () => void playDesktopVideo("tap"));
 const modifiers = new Set<string>();
 let dragLocked = false;
 
@@ -106,7 +163,7 @@ function showEnded(reason: "revoked" | "ended") {
     sessionStorage.setItem("deskpad.sessionEnded", "true");
   else sessionStorage.removeItem("deskpad.sessionEnded");
   desiredConnection = false;
-  desktopVideo.srcObject = null;
+  clearDesktopVideo();
   laptopAudio.srcObject = null;
   desktop.removeAttribute("src");
   frame = undefined;
@@ -158,7 +215,7 @@ const connection = new Connection({
       $("app").classList.add("in-session");
     } else {
       $("screen-empty").hidden = false;
-      desktopVideo.srcObject = null;
+      clearDesktopVideo();
       laptopAudio.srcObject = null;
       $("cursor").hidden = true;
       for (const id of ["phone-camera", "phone-microphone", "phone-speaker"])
@@ -256,17 +313,15 @@ const connection = new Connection({
     frame = metadata;
     position = metadata.cursor;
     viewer.setAspect(metadata.width, metadata.height);
-    $("screen-empty").hidden = true;
     drawCursor();
   },
   stream(stream, kind) {
     if (kind === "video") {
+      clearDesktopVideo();
       desktop.hidden = true;
       desktopVideo.hidden = false;
       desktopVideo.srcObject = stream;
-      void desktopVideo
-        .play()
-        .catch(() => toast("Tap Reconnect to resume desktop video."));
+      void playDesktopVideo();
     } else {
       laptopAudio.srcObject = stream;
       if ($<HTMLInputElement>("phone-speaker").checked)
@@ -648,12 +703,24 @@ function releaseInputs() {
   connection.release();
 }
 window.addEventListener("blur", releaseInputs);
-window.addEventListener("pagehide", () => connection.stop());
+let suspended = false;
+function suspendSession() {
+  if (suspended) return;
+  suspended = true;
+  releaseInputs();
+  connection.stop();
+}
+function resumeSession() {
+  if (document.hidden || !suspended) return;
+  suspended = false;
+  videoReconnectUsed = false;
+  if (desiredConnection) connection.start();
+}
+window.addEventListener("pagehide", suspendSession);
+window.addEventListener("pageshow", resumeSession);
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    releaseInputs();
-    connection.stop();
-  } else if (desiredConnection) connection.start();
+  if (document.hidden) suspendSession();
+  else resumeSession();
 });
 $("settings-toggle").addEventListener("click", openSettings);
 $("brand-status").addEventListener("click", openSettings);
@@ -705,6 +772,7 @@ $("disconnect").addEventListener("click", () => {
   showEnded("ended");
 });
 $("reconnect").addEventListener("click", () => {
+  videoReconnectUsed = false;
   desiredConnection = true;
   connection.start();
   closeSettings();

@@ -1,4 +1,4 @@
-#define AppVersion "0.2.0-alpha.7"
+#define AppVersion "0.2.0-alpha.8"
 [Setup]
 AppId={{DA9327C8-01B9-4CE8-9FF3-4EB937A18EF4}
 AppName=Deskpad

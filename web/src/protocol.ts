@@ -6,6 +6,7 @@ export type Input =
       enabled: boolean;
     }
   | { type: "move"; dx: number; dy: number }
+  | { type: "look"; dx: number; dy: number }
   | { type: "scroll"; dx: number; dy: number }
   | {
       type: "button";

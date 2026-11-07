@@ -5,6 +5,7 @@ import { attachKeyboard } from "./keyboard";
 import type { Frame } from "./protocol";
 import { DesktopViewer } from "./viewer";
 import { attachTrackpadSurface } from "./trackpad-surface";
+import { attachGamepad } from "./gamepad";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -17,6 +18,9 @@ let cameraFacing: "user" | "environment" = "user";
 const pad = $("trackpad");
 const viewer = new DesktopViewer($("screen"), $("picture"));
 let landscape = false;
+let gameMode = false;
+let gameAllowed = false;
+let gameCursor = false;
 let controlMode: "mouse" | "view" = "mouse";
 let portraitKeyboard = false;
 let dockCollapsed = localStorage.getItem("deskpad.dockCollapsed") === "true";
@@ -163,6 +167,7 @@ function showEnded(reason: "revoked" | "ended") {
     sessionStorage.setItem("deskpad.sessionEnded", "true");
   else sessionStorage.removeItem("deskpad.sessionEnded");
   desiredConnection = false;
+  if (gameMode) setGameMode(false);
   clearDesktopVideo();
   laptopAudio.srcObject = null;
   desktop.removeAttribute("src");
@@ -197,8 +202,17 @@ const connection = new Connection({
     $("connection-detail").textContent = message;
   },
   ended: showEnded,
+  gameAllowed(allowed) {
+    gameAllowed = allowed;
+    updateGameMode();
+  },
   state(state) {
-    if (state !== "connected") displayPreferencesApplied = false;
+    if (state !== "connected") {
+      displayPreferencesApplied = false;
+      gameAllowed = false;
+      cancelGamepad();
+      updateGameMode();
+    }
     $<HTMLSelectElement>("monitor-switch").disabled = state !== "connected";
     $<HTMLButtonElement>("remote-connect").disabled = state === "connecting";
     const labels = {
@@ -351,6 +365,13 @@ const connection = new Connection({
     $("screen-empty").textContent = message;
   },
 });
+const cancelGamepad = attachGamepad(
+  $("game-controls"),
+  (input) => connection.send(input),
+  () => gameMode && landscape && gameAllowed,
+  () => gameCursor,
+);
+
 const gesture = new TrackpadGesture((message) => {
   // Drag lock owns the held button until explicitly released.
   if (dragLocked && message.type === "button") return;
@@ -380,12 +401,12 @@ $("natural-scroll").addEventListener("change", (event) => {
 const cancelPortraitSurface = attachTrackpadSurface(
   pad,
   gesture,
-  () => !landscape,
+  () => !landscape && !gameMode,
 );
 const cancelLandscapeSurface = attachTrackpadSurface(
   $("screen"),
   gesture,
-  () => landscape && controlMode === "mouse",
+  () => landscape && controlMode === "mouse" && !gameMode,
 );
 
 function clearModifiers() {
@@ -523,6 +544,57 @@ function keepTypingFocus(event: Event) {
 workspace.addEventListener("pointerdown", keepTypingFocus, { capture: true });
 workspace.addEventListener("mousedown", keepTypingFocus, { capture: true });
 workspace.addEventListener("touchend", keepTypingFocus, { passive: false });
+function updateGameMode() {
+  $("app").classList.toggle("game-mode", gameMode);
+  $("app").classList.toggle("game-cursor", gameCursor);
+  $("game-controls").hidden = !gameMode || !landscape;
+  $("game-rotate").hidden = !gameMode || landscape;
+  $("game-cursor").setAttribute("aria-pressed", String(gameCursor));
+  const toggle = $<HTMLInputElement>("game-mode");
+  toggle.checked = gameMode;
+  toggle.disabled = !gameAllowed && !gameMode;
+  $("game-mode-help").textContent = gameAllowed
+    ? "Landscape controls for games that use a keyboard and mouse."
+    : "Connect to a laptop running Deskpad alpha.9 or later.";
+  viewer.setEnabled(!gameMode && (!landscape || controlMode === "view"));
+}
+
+const screenOrientation = window.screen.orientation as
+  | (ScreenOrientation & { lock?: (orientation: "landscape") => Promise<void> })
+  | undefined;
+function setGameMode(enabled: boolean) {
+  if (enabled && !gameAllowed) return;
+  releaseInputs();
+  keyboard(false);
+  portraitKeyboard = false;
+  gameMode = enabled;
+  gameCursor = false;
+  updateGameMode();
+  if (enabled) {
+    closeSettings(false);
+    viewer.reset();
+    void screenOrientation?.lock?.("landscape")
+      .then(() => {
+        if (!gameMode) screenOrientation.unlock?.();
+      })
+      .catch(() => {
+        // Browsers without orientation locking use the rotate prompt.
+      });
+  } else screenOrientation?.unlock?.();
+}
+
+$("game-mode").addEventListener("change", (event) => {
+  setGameMode((event.target as HTMLInputElement).checked);
+});
+document.querySelectorAll("[data-exit-game]").forEach((button) => {
+  button.addEventListener("click", () => setGameMode(false));
+});
+$("game-cursor").addEventListener("click", () => {
+  releaseInputs();
+  gameCursor = !gameCursor;
+  updateGameMode();
+});
+
 function openSettings() {
   restoreKeyboard = keyboardWanted;
   keyboard(false);
@@ -648,7 +720,7 @@ $("reset-view").addEventListener("click", () => {
 function setControlMode(mode: "mouse" | "view") {
   releaseInputs();
   controlMode = mode;
-  viewer.setEnabled(!landscape || mode === "view");
+  viewer.setEnabled(!gameMode && (!landscape || mode === "view"));
   $("app").classList.toggle("view-mode", landscape && mode === "view");
   $("mouse-mode").setAttribute("aria-pressed", String(mode === "mouse"));
   $("view-mode").setAttribute("aria-pressed", String(mode === "view"));
@@ -696,7 +768,8 @@ function updateOrientation() {
   viewer.setOrientation(landscape ? "landscape" : "portrait");
   $("reset-view").textContent = landscape ? "Fit desktop" : "Fit width";
   setControlMode("mouse");
-  if (!landscape && portraitKeyboard && desiredConnection) keyboard(true);
+  updateGameMode();
+  if (!landscape && !gameMode && portraitKeyboard && desiredConnection) keyboard(true);
 }
 window.screen.orientation?.addEventListener("change", updateOrientation);
 window.addEventListener("orientationchange", updateOrientation);
@@ -720,6 +793,7 @@ window.visualViewport?.addEventListener("scroll", viewport);
 window.addEventListener("resize", viewport);
 viewport();
 function releaseInputs() {
+  cancelGamepad();
   cancelPortraitSurface();
   cancelLandscapeSurface();
   wheelPointer = undefined;

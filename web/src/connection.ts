@@ -3,6 +3,7 @@ import type { Frame, Input } from "./protocol";
 type State =
   "connecting" | "connected" | "disconnected" | "busy" | "unpaired" | "paused";
 export type Hooks = {
+  gameAllowed?: (allowed: boolean) => void;
   mediaAllowed?: (allowed: {
     camera: boolean;
     microphone: boolean;
@@ -72,6 +73,7 @@ export class Connection {
         initialized = true;
         this.attempts = 0;
         this.hooks.state("connected");
+        this.hooks.gameAllowed?.(data.game === true);
         this.hooks.cursor(data.cursor);
         this.heartbeat = setInterval(
           () => this.send({ type: "ping", timestamp: performance.now() }),

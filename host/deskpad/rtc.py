@@ -68,6 +68,7 @@ class Peer:
                 {
                     "type": "hello",
                     "protocol": 2,
+                    "game": True,
                     "cursor": self.hub.native.position(),
                     "media": {
                         **media_permissions(

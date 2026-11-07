@@ -10,6 +10,7 @@ KeyName = Literal[
     "Shift",
     "Meta",
     "Enter",
+    "Space",
     "Tab",
     "Escape",
     "Backspace",
@@ -73,6 +74,12 @@ class Move(Message):
     dy: float = Field(ge=-2000, le=2000)
 
 
+class Look(Message):
+    type: Literal["look"]
+    dx: float = Field(ge=-2000, le=2000)
+    dy: float = Field(ge=-2000, le=2000)
+
+
 class Button(Message):
     type: Literal["button"]
     button: Literal["left", "right"]
@@ -123,7 +130,7 @@ class Ping(Message):
 
 
 Input = Annotated[
-    Move | Button | Scroll | Text | Key | Shortcut | Release | Ping | MediaState | Display,
+    Move | Look | Button | Scroll | Text | Key | Shortcut | Release | Ping | MediaState | Display,
     Field(discriminator="type"),
 ]
 INPUT_ADAPTER = TypeAdapter(Input)

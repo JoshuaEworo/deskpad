@@ -260,8 +260,10 @@ export class RtcConnection {
         this.end(result.reason);
         return;
       }
-      if (result.type === "hello") this.hooks.mediaAllowed?.(result.media);
-      else if (result.type === "frame") this.hooks.metadata?.(result);
+      if (result.type === "hello") {
+        this.hooks.mediaAllowed?.(result.media);
+        this.hooks.gameAllowed?.(result.game === true);
+      } else if (result.type === "frame") this.hooks.metadata?.(result);
       else if (result.type === "cursor") this.hooks.cursor(result.position);
       else if (result.type === "pong")
         this.hooks.latency(performance.now() - result.timestamp);

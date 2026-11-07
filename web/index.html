@@ -119,6 +119,40 @@
           <div id="video-recovery">
             <button id="resume-video" type="button" hidden>Resume video</button>
           </div>
+          <div id="game-rotate" class="game-rotate" hidden>
+            <strong>Rotate to play</strong>
+            <span>Turn your phone sideways. Unlock rotation if needed.</span>
+            <button type="button" data-exit-game>Exit game mode</button>
+          </div>
+          <div id="game-controls" class="game-controls" aria-label="Game controls" hidden>
+            <div id="game-look" class="game-look" aria-label="Swipe to look"></div>
+            <div class="game-bar">
+              <button type="button" data-game-press="Escape">Pause</button>
+              <button type="button" data-game-press="e">Inventory</button>
+              <button type="button" id="game-cursor" aria-pressed="false">Cursor</button>
+              <button type="button" data-exit-game>Exit</button>
+            </div>
+            <div class="game-left">
+              <div class="game-row">
+                <button type="button" data-game-toggle="Control" aria-pressed="false">Sprint</button>
+                <button type="button" data-game-toggle="Shift" aria-pressed="false">Sneak</button>
+              </div>
+              <div id="game-stick" class="game-stick" aria-label="Movement stick">
+                <span aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="game-right">
+              <div class="game-row">
+                <button type="button" data-game-slot="-1" aria-label="Previous hotbar slot">◀</button>
+                <button type="button" data-game-slot="1" aria-label="Next hotbar slot">▶</button>
+              </div>
+              <div class="game-row">
+                <button type="button" data-game-button="left">Attack</button>
+                <button type="button" data-game-button="right">Use</button>
+                <button type="button" data-game-key="Space">Jump</button>
+              </div>
+            </div>
+          </div>
           <span id="status" class="sr-only" role="status">Connecting…</span>
           <div class="screen-overlay">
             <button
@@ -368,6 +402,12 @@
             aria-labelledby="tab-pointer"
           >
             <h3>Make it feel right</h3>
+            <label class="check-row">
+              <input id="game-mode" type="checkbox" disabled /> Game mode
+            </label>
+            <p id="game-mode-help" class="settings-help">
+              Connect to your laptop to enable game controls.
+            </p>
             <label class="check-row"
               ><input id="show-mouse-buttons" type="checkbox" /> Show mouse
               buttons</label

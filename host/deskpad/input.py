@@ -1,6 +1,6 @@
 """Each controller owns its held keys and mouse buttons."""
 
-from .protocol import Button, Key, Move, Release, Scroll, Shortcut, Text
+from .protocol import Button, Key, Look, Move, Release, Scroll, Shortcut, Text
 
 
 class InputSession:
@@ -14,6 +14,8 @@ class InputSession:
         match message:
             case Move(dx=dx, dy=dy):
                 b.move(dx, dy)
+            case Look(dx=dx, dy=dy):
+                b.look(dx, dy)
             case Scroll(dx=dx, dy=dy):
                 b.scroll(dx, dy)
             case Text(text=text):
@@ -63,6 +65,8 @@ class InputSession:
     def release(self):
         if hasattr(self.backend, "motion"):
             self.backend.motion.clear()
+        if hasattr(self.backend, "look_motion"):
+            self.backend.look_motion.clear()
         errors = []
         for key in list(self.keys):
             try:

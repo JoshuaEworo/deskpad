@@ -753,3 +753,59 @@ test("foregrounding recovers rejected RTC playback with one automatic reconnect"
   await expect(page.locator("#screen-empty")).toBeHidden();
   await expect(page.getByRole("button", { name: "Resume video" })).toBeHidden();
 });
+
+test("game mode sends movement and look together and releases held inputs on exit", async ({
+  page,
+  browserName,
+}) => {
+  await pair(page);
+  await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByRole("checkbox", { name: "Game mode" }).check();
+  await expect(page.getByText("Rotate to play", { exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(page.locator("#game-controls")).toBeVisible();
+  await expect(page.locator(".controls")).toBeHidden();
+
+  const stick = (await page.locator("#game-stick").boundingBox())!;
+  const attack = (await page.getByRole("button", { name: "Attack" }).boundingBox())!;
+  const movement = { x: stick.x + stick.width / 2, y: stick.y + 12 };
+  const strike = { x: attack.x + attack.width / 2, y: attack.y + attack.height / 2 };
+  const baseline = (await events(page)).length;
+  if (browserName === "chromium") {
+    const touch = await page.context().newCDPSession(page);
+    const held = [{ ...movement, id: 1 }, { ...strike, id: 2 }];
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [...held, { x: 520, y: 160, id: 3 }],
+    });
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [...held, { x: 548, y: 178, id: 3 }],
+    });
+    await expect.poll(async () => {
+      const inputs = (await events(page)).slice(baseline);
+      return [
+        inputs.some(([type, key, down]) => type === "key" && key === "w" && down === true),
+        inputs.some(([type, button, down]) => type === "button" && button === "left" && down === true),
+        inputs.some(([type]) => type === "look"),
+      ];
+    }).toEqual([true, true, true]);
+    await page.getByRole("button", { name: "Exit", exact: true }).evaluate((button) => button.click());
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect.poll(async () => {
+      const inputs = (await events(page)).slice(baseline);
+      return [
+        inputs.some(([type, key, down]) => type === "key" && key === "w" && down === false),
+        inputs.some(([type, button, down]) => type === "button" && button === "left" && down === false),
+      ];
+    }).toEqual([true, true]);
+  } else {
+    await page.getByRole("button", { name: "Jump" }).click();
+    await expect.poll(async () =>
+      (await events(page)).slice(baseline).filter(([type, key]) => type === "key" && key === "Space"),
+    ).toEqual([["key", "Space", true], ["key", "Space", false]]);
+    await page.getByRole("button", { name: "Exit", exact: true }).click();
+  }
+  await expect(page.locator("#game-controls")).toBeHidden();
+  await expect(page.locator(".controls")).toBeVisible();
+});

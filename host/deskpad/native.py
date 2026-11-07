@@ -11,6 +11,7 @@ KEYS = {
     "Shift": 0x10,
     "Meta": 0x5B,
     "Enter": 0x0D,
+    "Space": 0x20,
     "Tab": 9,
     "Escape": 0x1B,
     "Backspace": 8,
@@ -63,6 +64,7 @@ class DemoInput:
         self.events = deque(maxlen=200)
         self.x, self.y = 600, 350
         self.motion = RelativeMotion()
+        self.look_motion = RelativeMotion()
 
     def position(self):
         return self.x, self.y
@@ -74,6 +76,10 @@ class DemoInput:
         self.x += movement[0]
         self.y += movement[1]
         self.events.append(("move", dx, dy))
+
+    def look(self, dx, dy):
+        if self.look_motion.take(dx, dy):
+            self.events.append(("look", dx, dy))
 
     def focus_display(self, bounds):
         self.motion.clear()
@@ -141,6 +147,7 @@ class WindowsInput:
         self.user.SetCursorPos.restype = w.BOOL
         self.Point = w.POINT
         self.motion = RelativeMotion()
+        self.look_motion = RelativeMotion()
 
     def _send(self, event):
         if self.user.SendInput(1, ctypes.byref(event), ctypes.sizeof(self.Input)) != 1:
@@ -160,6 +167,13 @@ class WindowsInput:
             x, y = self.position()
             if not self.user.SetCursorPos(x + movement[0], y + movement[1]):
                 raise ctypes.WinError(ctypes.get_last_error())
+
+    def look(self, dx, dy):
+        movement = self.look_motion.take(dx, dy)
+        if movement:
+            x, y = movement
+            # MOUSEEVENTF_MOVE without ABSOLUTE sends deltas for a captured cursor.
+            self._send(self.Input(type=0, mi=self.Mouse(dx=x, dy=y, dwFlags=0x0001)))
 
     def focus_display(self, bounds):
         self.motion.clear()

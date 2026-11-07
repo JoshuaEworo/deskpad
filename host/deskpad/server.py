@@ -305,6 +305,7 @@ def create_app(
                     "type": "hello",
                     "protocol": 1,
                     "connection": connection_id,
+                    "game": True,
                     "demo": demo,
                     "cursor": native.position(),
                 }

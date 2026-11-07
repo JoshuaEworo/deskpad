@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from deskpad.capture import ScreenCapture
+from deskpad.input import InputSession
 from deskpad.native import DemoInput, RelativeMotion, WindowsInput
 from deskpad.protocol import INPUT_ADAPTER, Display
 from deskpad.rtc import RtcHub
@@ -174,3 +175,23 @@ def test_terminal_capture_error_closes_peer_instead_of_leaving_blank_live_sessio
             track.stop()
 
     asyncio.run(scenario())
+
+
+def test_game_look_sends_relative_mouse_input_without_reading_cursor():
+    native = WindowsInput.__new__(WindowsInput)
+    native.motion = RelativeMotion()
+    native.look_motion = RelativeMotion()
+    native.Input = native.Mouse = SimpleNamespace
+    sent = []
+    native._send = sent.append
+    session = InputSession(native)
+    for _ in range(4):
+        session.handle(INPUT_ADAPTER.validate_python({"type": "look", "dx": 0.25, "dy": -0.5}))
+    assert [(event.mi.dx, event.mi.dy, event.mi.dwFlags) for event in sent] == [
+        (0, -1, 0x0001),
+        (1, -1, 0x0001),
+    ]
+    session.handle(INPUT_ADAPTER.validate_python({"type": "look", "dx": 0.75, "dy": 0}))
+    session.release()
+    session.handle(INPUT_ADAPTER.validate_python({"type": "look", "dx": 0.25, "dy": 0}))
+    assert len(sent) == 2

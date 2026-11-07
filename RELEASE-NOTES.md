@@ -1,5 +1,7 @@
-Deskpad 0.2.0-alpha.8
+Deskpad 0.2.0-alpha.9
 
-- Automatically retries desktop video when you return to Deskpad, with a Resume video button if playback still needs a tap.
-- Keeps the phone keyboard open while you tap the desktop, trackpad, and hotkeys. Use the keyboard button to hide it.
-- Prevents native text selection on the controls and double-tap page zoom during a remote session.
+- Adds Game mode in phone Settings. Rotate to landscape for a movement stick, swipe-to-look, and buttons for jumping, attacking, using items, sprinting, sneaking, inventory, and the hotbar.
+- Uses Windows relative mouse input for camera look. Controls send keyboard and mouse events and are mapped to default Minecraft Bedrock bindings.
+- Releases held inputs when leaving Game mode, rotating, backgrounding, or losing the session.
+
+Real-device play in Minecraft Bedrock has not been verified.

@@ -486,7 +486,27 @@ function keyboard(open: boolean) {
   if (open) typing.focus({ preventScroll: true });
   else typing.blur();
 }
-$("keyboard-toggle").addEventListener("click", () => keyboard(!keyboardWanted));
+const keyboardToggle = $("keyboard-toggle");
+keyboardToggle.addEventListener("click", () => keyboard(!keyboardWanted));
+// Use the trusted touch event on iOS, where a focus-preserving tap can
+// suppress the synthesized click. Cancel that click to avoid a double toggle.
+keyboardToggle.addEventListener(
+  "touchend",
+  (event) => {
+    const touch = event.changedTouches[0];
+    if (
+      event.touches.length ||
+      event.changedTouches.length !== 1 ||
+      !keyboardToggle.contains(
+        document.elementFromPoint(touch.clientX, touch.clientY),
+      )
+    )
+      return;
+    event.preventDefault();
+    keyboard(!keyboardWanted);
+  },
+  { passive: false },
+);
 typing.addEventListener("blur", () => keyboard(false));
 // Remote surfaces handle pointer input themselves. Keep local focus in the
 // typing sink while they do, including when a tap generates mouse events.
